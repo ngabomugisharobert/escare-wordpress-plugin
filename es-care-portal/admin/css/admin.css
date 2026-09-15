@@ -1,0 +1,123 @@
+.esc-admin-lede {
+	color: #5c5854;
+	max-width: 48rem;
+}
+
+.esc-admin-stats {
+	display: flex;
+	gap: 1rem;
+	margin: 1.25rem 0 2rem;
+	flex-wrap: wrap;
+}
+
+.esc-admin-stat {
+	display: block;
+	min-width: 180px;
+	padding: 1rem 1.2rem;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+	text-decoration: none;
+	color: #1d2327;
+}
+
+.esc-admin-stat strong {
+	display: block;
+	font-size: 1.8rem;
+	line-height: 1.1;
+	color: #16324f;
+}
+
+.esc-admin-stat span {
+	color: #646970;
+}
+
+.esc-admin-grid {
+	display: grid;
+	grid-template-columns: 2fr 1fr;
+	gap: 1.25rem;
+	align-items: start;
+}
+
+.esc-admin-panel {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+	padding: 1.1rem 1.25rem 1.35rem;
+}
+
+.esc-dl {
+	display: grid;
+	grid-template-columns: 160px 1fr;
+	gap: 0.4rem 0.8rem;
+}
+
+.esc-dl dt {
+	color: #646970;
+	margin: 0;
+}
+
+.esc-dl dd {
+	margin: 0;
+}
+
+.esc-cover {
+	background: #f6f7f7;
+	padding: 0.75rem 1rem;
+	border-radius: 6px;
+}
+
+.esc-status {
+	display: inline-block;
+	padding: 0.12rem 0.5rem;
+	border-radius: 999px;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.esc-status--pending,
+.esc-status--open {
+	background: #ecfdf3;
+	color: #067647;
+}
+
+.esc-status--reviewing,
+.esc-status--interview {
+	background: #eff8ff;
+	color: #175cd3;
+}
+
+.esc-status--hired {
+	background: #f0fdf4;
+	color: #166534;
+}
+
+.esc-status--rejected,
+.esc-status--closed {
+	background: #fef3f2;
+	color: #b42318;
+}
+
+.esc-status--withdrawn {
+	background: #f5f5f4;
+	color: #78716c;
+}
+
+.esc-muted {
+	color: #646970;
+	margin-left: 0.5rem;
+}
+
+.esc-job-meta label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 0.25rem;
+}
+
+@media (max-width: 900px) {
+	.esc-admin-grid,
+	.esc-dl {
+		grid-template-columns: 1fr;
+	}
+}
