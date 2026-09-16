@@ -9,6 +9,8 @@ defined( 'ABSPATH' ) || exit;
 
 class ESC_Portal_Users {
 
+	const MIN_PASSWORD_LENGTH = 8;
+
 	const ROLE_SEEKER   = 'job_seeker';
 	const ROLE_EMPLOYER = 'employer';
 	const ROLE_ADMIN    = 'admin';
@@ -121,6 +123,62 @@ class ESC_Portal_Users {
 				KEY expires (expires)
 			) {$charset};"
 		);
+	}
+
+	/**
+	 * Whether the dashboard users table exists.
+	 *
+	 * @return bool
+	 */
+	public static function tables_exist() {
+		global $wpdb;
+
+		$name = self::table();
+		$found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $name ) );
+
+		return $found === $name;
+	}
+
+	/**
+	 * Create tables if missing (safe to call repeatedly).
+	 */
+	public static function ensure_tables() {
+		if ( ! self::tables_exist() ) {
+			self::install();
+		}
+	}
+
+	/**
+	 * Counts of dashboard users by role.
+	 *
+	 * @return array<string,int>
+	 */
+	public static function counts_by_role() {
+		global $wpdb;
+
+		self::ensure_tables();
+
+		$counts = array(
+			self::ROLE_SEEKER   => 0,
+			self::ROLE_EMPLOYER => 0,
+			self::ROLE_ADMIN    => 0,
+		);
+
+		if ( ! self::tables_exist() ) {
+			return $counts;
+		}
+
+		$rows = $wpdb->get_results( 'SELECT role, COUNT(*) AS total FROM ' . self::table() . ' GROUP BY role' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		if ( $rows ) {
+			foreach ( $rows as $row ) {
+				if ( isset( $counts[ $row->role ] ) ) {
+					$counts[ $row->role ] = (int) $row->total;
+				}
+			}
+		}
+
+		return $counts;
 	}
 
 	/**
@@ -254,17 +312,39 @@ class ESC_Portal_Users {
 	}
 
 	/**
+	 * Require a long password with mixed character classes.
+	 *
+	 * @param string $password Plain password.
+	 * @return bool
+	 */
+	public static function is_strong_password( $password ) {
+		$password = (string) $password;
+
+		return strlen( $password ) >= self::MIN_PASSWORD_LENGTH
+			&& (bool) preg_match( '/[a-z]/', $password )
+			&& (bool) preg_match( '/[A-Z]/', $password )
+			&& (bool) preg_match( '/[0-9]/', $password );
+	}
+
+	/**
 	 * @param array $data User data.
 	 * @return int|WP_Error
 	 */
 	public static function create( $data ) {
 		global $wpdb;
 
+		self::ensure_tables();
+
 		$email = isset( $data['email'] ) ? sanitize_email( $data['email'] ) : '';
 		$role  = isset( $data['role'] ) ? sanitize_key( $data['role'] ) : self::ROLE_SEEKER;
+		$password = isset( $data['password'] ) ? (string) $data['password'] : '';
 
 		if ( ! is_email( $email ) ) {
 			return new WP_Error( 'esc_email', __( 'Please enter a valid email address.', 'es-care-portal' ) );
+		}
+
+		if ( $password && ! self::is_strong_password( $password ) ) {
+			return new WP_Error( 'esc_password', __( 'Use at least 8 characters with uppercase, lowercase, and a number.', 'es-care-portal' ) );
 		}
 
 		if ( ! isset( self::roles()[ $role ] ) ) {
@@ -280,13 +360,13 @@ class ESC_Portal_Users {
 			self::table(),
 			array(
 				'email'        => $email,
-				'password'     => isset( $data['password'] ) ? wp_hash_password( $data['password'] ) : wp_hash_password( wp_generate_password( 20, true, true ) ),
+				'password'     => wp_hash_password( $password ? $password : wp_generate_password( 20, true, true ) ),
 				'first_name'   => isset( $data['first_name'] ) ? sanitize_text_field( $data['first_name'] ) : '',
 				'last_name'    => isset( $data['last_name'] ) ? sanitize_text_field( $data['last_name'] ) : '',
 				'phone'        => isset( $data['phone'] ) ? sanitize_text_field( $data['phone'] ) : '',
 				'role'         => $role,
 				'company_name' => isset( $data['company_name'] ) ? sanitize_text_field( $data['company_name'] ) : '',
-				'status'       => isset( $data['status'] ) ? sanitize_key( $data['status'] ) : self::STATUS_ACTIVE,
+				'status'       => isset( $data['status'] ) && in_array( sanitize_key( $data['status'] ), array( self::STATUS_ACTIVE, self::STATUS_DISABLED ), true ) ? sanitize_key( $data['status'] ) : self::STATUS_ACTIVE,
 				'created_at'   => $now,
 				'updated_at'   => $now,
 			),
@@ -334,8 +414,16 @@ class ESC_Portal_Users {
 
 			if ( 'email' === $key ) {
 				$value = sanitize_email( $value );
-			} elseif ( in_array( $key, array( 'role', 'status' ), true ) ) {
+			} elseif ( 'role' === $key ) {
 				$value = sanitize_key( $value );
+				if ( ! isset( self::roles()[ $value ] ) ) {
+					continue;
+				}
+			} elseif ( 'status' === $key ) {
+				$value = sanitize_key( $value );
+				if ( ! in_array( $value, array( self::STATUS_ACTIVE, self::STATUS_DISABLED ), true ) ) {
+					continue;
+				}
 			} elseif ( in_array( $key, array( 'reset_expires', 'last_login' ), true ) ) {
 				$value = $value ? $value : null;
 			} else {
@@ -346,12 +434,37 @@ class ESC_Portal_Users {
 			$fmt[]       = $placeholder;
 		}
 
-		if ( ! empty( $data['password'] ) ) {
+		if ( ! empty( $data['password'] ) && self::is_strong_password( $data['password'] ) ) {
 			$set['password'] = wp_hash_password( $data['password'] );
 			$fmt[]           = '%s';
 		}
 
 		return false !== $wpdb->update( self::table(), $set, array( 'id' => $id ), $fmt, array( '%d' ) );
+	}
+
+	/**
+	 * Permanently delete a dashboard user and associated custom-table data.
+	 *
+	 * Jobs and applications are retained as business records.
+	 *
+	 * @param int $id Dashboard user ID.
+	 * @return bool
+	 */
+	public static function delete( $id ) {
+		global $wpdb;
+
+		$id = absint( $id );
+
+		if ( ! $id || ! self::get( $id ) ) {
+			return false;
+		}
+
+		$wpdb->delete( self::sessions_table(), array( 'user_id' => $id ), array( '%d' ) );
+		$wpdb->delete( self::meta_table(), array( 'user_id' => $id ), array( '%d' ) );
+		$wpdb->delete( ESC_Portal_Assessments::attempts_table(), array( 'user_id' => $id ), array( '%d' ) );
+		$wpdb->delete( ESC_Portal_Forms::requests_table(), array( 'user_id' => $id ), array( '%d' ) );
+
+		return false !== $wpdb->delete( self::table(), array( 'id' => $id ), array( '%d' ) );
 	}
 
 	/**

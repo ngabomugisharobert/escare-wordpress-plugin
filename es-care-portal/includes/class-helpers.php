@@ -20,9 +20,24 @@ class ESC_Portal_Helpers {
 	 */
 	public static function default_settings() {
 		return array(
-			'notification_email' => '',
-			'max_file_mb'        => 5,
-			'allowed_types'      => array( 'pdf', 'doc', 'docx' ),
+			'notification_email'    => '',
+			'smtp_enabled'          => 0,
+			'smtp_host'             => 'escareservices.com',
+			'smtp_port'             => 465,
+			'smtp_encryption'       => 'ssl',
+			'smtp_username'         => 'info@escareservices.com',
+			'smtp_password'         => '',
+			'smtp_from_email'       => 'info@escareservices.com',
+			'smtp_from_name'        => '',
+			'max_file_mb'           => 5,
+			'allowed_types'         => array( 'pdf', 'doc', 'docx' ),
+			'color_accent'          => '#4caf50',
+			'color_sidebar'         => '#66bb6a',
+			'color_sidebar_header'  => '#2e7d32',
+			'color_tile'            => '#4caf50',
+			'color_cta'             => '#2e7d32',
+			'tile_seeker'           => array( 'apply', 'assessments', 'results', 'forms' ),
+			'tile_employer'         => array( 'post', 'jobs', 'profile', 'membership' ),
 		);
 	}
 
@@ -47,7 +62,30 @@ class ESC_Portal_Helpers {
 			$settings['allowed_types'] = $defaults['allowed_types'];
 		}
 
+		if ( ! is_array( $settings['tile_seeker'] ) ) {
+			$settings['tile_seeker'] = $defaults['tile_seeker'];
+		}
+
+		if ( ! is_array( $settings['tile_employer'] ) ) {
+			$settings['tile_employer'] = $defaults['tile_employer'];
+		}
+
 		$settings['max_file_mb'] = max( 1, absint( $settings['max_file_mb'] ) );
+
+		return $settings;
+	}
+
+	/**
+	 * Settings safe to pass into frontend templates and widgets.
+	 *
+	 * @return array
+	 */
+	public static function public_settings() {
+		$settings = self::get_settings();
+
+		foreach ( array( 'smtp_enabled', 'smtp_host', 'smtp_port', 'smtp_encryption', 'smtp_username', 'smtp_password', 'smtp_from_email', 'smtp_from_name' ) as $key ) {
+			unset( $settings[ $key ] );
+		}
 
 		return $settings;
 	}
@@ -139,6 +177,8 @@ class ESC_Portal_Helpers {
 
 		if ( 'employer' === $role ) {
 			$allowed = array( 'home', 'profile', 'jobs', 'password', 'request', 'membership', 'post' );
+		} elseif ( 'admin' === $role ) {
+			$allowed = array( 'home', 'users', 'jobs', 'applications' );
 		}
 
 		return in_array( $view, $allowed, true ) ? $view : 'home';
@@ -424,8 +464,8 @@ class ESC_Portal_Helpers {
 	 * @return string
 	 */
 	public static function format_status( $status ) {
-		$statuses = self::application_statuses();
 		$key      = sanitize_key( $status );
+		$statuses = array_merge( self::application_statuses(), self::job_statuses() );
 
 		return isset( $statuses[ $key ] ) ? $statuses[ $key ] : $status;
 	}
@@ -521,18 +561,22 @@ class ESC_Portal_Helpers {
 			'invalid-login'     => __( 'The email or password is incorrect.', 'es-care-portal' ),
 			'email-exists'      => __( 'An account with that email already exists. Sign in instead.', 'es-care-portal' ),
 			'password-mismatch' => __( 'The passwords did not match.', 'es-care-portal' ),
-			'weak-password'     => __( 'Please choose a password with at least 8 characters.', 'es-care-portal' ),
+			'weak-password'     => __( 'Use at least 8 characters with uppercase, lowercase, and a number.', 'es-care-portal' ),
 			'invalid-email'     => __( 'Please enter a valid email address.', 'es-care-portal' ),
 			'required'          => __( 'Please fill in all required fields.', 'es-care-portal' ),
 			'nonce'             => __( 'The form expired. Please try again.', 'es-care-portal' ),
 			'reset-invalid'     => __( 'This reset link is invalid or has expired.', 'es-care-portal' ),
 			'not-allowed'       => __( 'You cannot do that.', 'es-care-portal' ),
 			'company-required'  => __( 'Please enter your company name.', 'es-care-portal' ),
+			'role-required'     => __( 'Please choose Job Seeker or Employer.', 'es-care-portal' ),
 			'account-disabled'  => __( 'This account has been disabled.', 'es-care-portal' ),
 			'status-saved'      => __( 'Application status saved.', 'es-care-portal' ),
 			'user-updated'      => __( 'User updated.', 'es-care-portal' ),
 			'job-saved'         => __( 'Job listing saved.', 'es-care-portal' ),
 			'job-deleted'       => __( 'Job listing removed.', 'es-care-portal' ),
+			'user-deleted'      => __( 'Dashboard user permanently deleted.', 'es-care-portal' ),
+			'application-deleted' => __( 'Application moved to Trash.', 'es-care-portal' ),
+			'cannot-delete-self' => __( 'You cannot delete the portal administrator account you are currently using.', 'es-care-portal' ),
 			'seeker-only'       => __( 'Only job seekers can apply for positions.', 'es-care-portal' ),
 			'password-changed'  => __( 'Your password has been updated.', 'es-care-portal' ),
 			'wrong-password'    => __( 'Your current password is incorrect.', 'es-care-portal' ),

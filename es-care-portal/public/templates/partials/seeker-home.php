@@ -11,27 +11,30 @@
 defined( 'ABSPATH' ) || exit;
 
 $tiles = array(
-	array(
+	'apply'       => array(
 		'url'   => ESC_Portal_Helpers::dashboard_url( 'apply' ),
 		'label' => __( 'Job Application / Resume', 'es-care-portal' ),
 		'icon'  => '<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M10 13h6M10 17h4"/></svg>',
 	),
-	array(
+	'assessments' => array(
 		'url'   => ESC_Portal_Helpers::dashboard_url( 'assessments' ),
 		'label' => __( 'Pre-Hire Assessment Tests', 'es-care-portal' ),
 		'icon'  => '<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
 	),
-	array(
+	'results'     => array(
 		'url'   => ESC_Portal_Helpers::dashboard_url( 'results' ),
 		'label' => __( 'My Assessment Results', 'es-care-portal' ),
 		'icon'  => '<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 4h10v17l-5-3-5 3z"/></svg>',
 	),
-	array(
+	'forms'       => array(
 		'url'   => ESC_Portal_Helpers::dashboard_url( 'forms' ),
 		'label' => __( 'Employment Forms', 'es-care-portal' ),
 		'icon'  => '<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/><path d="M10 12h6M10 16h4"/></svg>',
 	),
 );
+
+$enabled = ESC_Portal_Helpers::public_settings()['tile_seeker'];
+$tiles   = array_intersect_key( $tiles, array_flip( (array) $enabled ) );
 
 $account = array(
 	array(

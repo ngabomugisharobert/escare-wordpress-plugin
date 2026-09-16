@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 ?>
-<div class="esc-portal-wrap">
+<div class="esc-portal-wrap esc-portal-wrap--auth">
 	<?php include ESC_PORTAL_DIR . 'public/templates/partials/account-nav.php'; ?>
 	<div class="esc-card esc-card--narrow">
 		<h2><?php esc_html_e( 'Choose a new password', 'es-care-portal' ); ?></h2>
@@ -26,7 +26,8 @@ defined( 'ABSPATH' ) || exit;
 				<input type="hidden" name="esc_login" value="<?php echo esc_attr( $login ); ?>">
 				<p class="esc-field">
 					<label for="esc_password"><?php esc_html_e( 'New password', 'es-care-portal' ); ?></label>
-					<input type="password" id="esc_password" name="esc_password" required minlength="8" autocomplete="new-password">
+					<input type="password" id="esc_password" name="esc_password" required minlength="8" autocomplete="new-password" aria-describedby="esc-password-rules">
+					<span class="esc-help" id="esc-password-rules"><?php esc_html_e( '8+ characters with uppercase, lowercase, and a number.', 'es-care-portal' ); ?></span>
 				</p>
 				<p class="esc-field">
 					<label for="esc_password_confirm"><?php esc_html_e( 'Confirm password', 'es-care-portal' ); ?></label>

@@ -1,23 +1,62 @@
 <?php
 /**
- * Portal users (custom table) in WP admin.
+ * Dashboard users (custom table) — separate from WordPress users.
  *
  * @package ESC_Portal
  *
  * @var object[] $users
+ * @var array<string,int> $counts
+ * @var string $table_name
  */
 
 defined( 'ABSPATH' ) || exit;
 ?>
 <div class="wrap esc-admin">
-	<h1><?php esc_html_e( 'Portal Users', 'es-care-portal' ); ?></h1>
-	<p><?php esc_html_e( 'These accounts live in a separate table from WordPress users. Job seekers, employers, and portal admins sign in on the frontend.', 'es-care-portal' ); ?></p>
+	<h1><?php esc_html_e( 'Dashboard Users', 'es-care-portal' ); ?></h1>
+	<div class="notice notice-info inline">
+		<p>
+			<?php
+			echo esc_html(
+				sprintf(
+					/* translators: %s: database table name */
+					__( 'Job seekers, employers, and portal admins are stored in %s — not in WordPress Users (wp_users). They sign in on the careers portal only.', 'es-care-portal' ),
+					$table_name
+				)
+			);
+			?>
+		</p>
+	</div>
 
-	<h2><?php esc_html_e( 'Create portal admin', 'es-care-portal' ); ?></h2>
+	<div class="esc-admin-stats" style="margin:1.25rem 0;">
+		<div class="esc-admin-stat">
+			<strong><?php echo esc_html( (string) $counts['job_seeker'] ); ?></strong>
+			<span><?php esc_html_e( 'Job Seekers', 'es-care-portal' ); ?></span>
+		</div>
+		<div class="esc-admin-stat">
+			<strong><?php echo esc_html( (string) $counts['employer'] ); ?></strong>
+			<span><?php esc_html_e( 'Employers', 'es-care-portal' ); ?></span>
+		</div>
+		<div class="esc-admin-stat">
+			<strong><?php echo esc_html( (string) $counts['admin'] ); ?></strong>
+			<span><?php esc_html_e( 'Portal Admins', 'es-care-portal' ); ?></span>
+		</div>
+	</div>
+
+	<h2><?php esc_html_e( 'Create dashboard user', 'es-care-portal' ); ?></h2>
 	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-		<?php wp_nonce_field( 'esc_create_portal_admin', 'esc_portal_admin_nonce' ); ?>
-		<input type="hidden" name="action" value="esc_create_portal_admin">
+		<?php wp_nonce_field( 'esc_create_dashboard_user', 'esc_dashboard_user_nonce' ); ?>
+		<input type="hidden" name="action" value="esc_create_dashboard_user">
 		<table class="form-table">
+			<tr>
+				<th><label for="esc_role"><?php esc_html_e( 'Role', 'es-care-portal' ); ?></label></th>
+				<td>
+					<select id="esc_role" name="esc_role" required>
+						<?php foreach ( ESC_Portal_Users::roles() as $key => $label ) : ?>
+							<option value="<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $label ); ?></option>
+						<?php endforeach; ?>
+					</select>
+				</td>
+			</tr>
 			<tr>
 				<th><label for="esc_first_name"><?php esc_html_e( 'First name', 'es-care-portal' ); ?></label></th>
 				<td><input type="text" id="esc_first_name" name="esc_first_name" required></td>
@@ -27,21 +66,33 @@ defined( 'ABSPATH' ) || exit;
 				<td><input type="text" id="esc_last_name" name="esc_last_name" required></td>
 			</tr>
 			<tr>
+				<th><label for="esc_company_name"><?php esc_html_e( 'Company (employers)', 'es-care-portal' ); ?></label></th>
+				<td><input type="text" id="esc_company_name" name="esc_company_name"></td>
+			</tr>
+			<tr>
 				<th><label for="esc_email"><?php esc_html_e( 'Email', 'es-care-portal' ); ?></label></th>
 				<td><input type="email" id="esc_email" name="esc_email" required></td>
 			</tr>
 			<tr>
+				<th><label for="esc_phone"><?php esc_html_e( 'Phone', 'es-care-portal' ); ?></label></th>
+				<td><input type="tel" id="esc_phone" name="esc_phone"></td>
+			</tr>
+			<tr>
 				<th><label for="esc_password"><?php esc_html_e( 'Password', 'es-care-portal' ); ?></label></th>
-				<td><input type="password" id="esc_password" name="esc_password" required minlength="8"></td>
+				<td>
+					<input type="password" id="esc_password" name="esc_password" required minlength="8" autocomplete="new-password">
+					<p class="description"><?php esc_html_e( '8+ characters with uppercase, lowercase, and a number.', 'es-care-portal' ); ?></p>
+				</td>
 			</tr>
 		</table>
-		<?php submit_button( __( 'Create portal admin', 'es-care-portal' ) ); ?>
+		<?php submit_button( __( 'Create dashboard user', 'es-care-portal' ) ); ?>
 	</form>
 
-	<h2><?php esc_html_e( 'All portal users', 'es-care-portal' ); ?></h2>
+	<h2><?php esc_html_e( 'All dashboard users', 'es-care-portal' ); ?></h2>
 	<table class="widefat striped">
 		<thead>
 			<tr>
+				<th><?php esc_html_e( 'ID', 'es-care-portal' ); ?></th>
 				<th><?php esc_html_e( 'Name', 'es-care-portal' ); ?></th>
 				<th><?php esc_html_e( 'Email', 'es-care-portal' ); ?></th>
 				<th><?php esc_html_e( 'Role', 'es-care-portal' ); ?></th>
@@ -51,10 +102,11 @@ defined( 'ABSPATH' ) || exit;
 		</thead>
 		<tbody>
 			<?php if ( empty( $users ) ) : ?>
-				<tr><td colspan="5"><?php esc_html_e( 'No portal users yet. Register on the frontend or create an admin above.', 'es-care-portal' ); ?></td></tr>
+				<tr><td colspan="6"><?php esc_html_e( 'No dashboard users yet. Register on the frontend or create one above.', 'es-care-portal' ); ?></td></tr>
 			<?php else : ?>
 				<?php foreach ( $users as $row ) : ?>
 					<tr>
+						<td><?php echo esc_html( (string) $row->id ); ?></td>
 						<td><?php echo esc_html( $row->display_name ); ?></td>
 						<td><?php echo esc_html( $row->email ); ?></td>
 						<td><?php echo esc_html( ESC_Portal_Users::role_label( $row->role ) ); ?></td>

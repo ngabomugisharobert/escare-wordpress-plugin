@@ -15,7 +15,7 @@
 defined( 'ABSPATH' ) || exit;
 
 $profile         = isset( $profile ) && is_array( $profile ) ? $profile : array();
-$settings        = isset( $settings ) && is_array( $settings ) ? $settings : ESC_Portal_Helpers::get_settings();
+$settings        = isset( $settings ) && is_array( $settings ) ? $settings : ESC_Portal_Helpers::public_settings();
 $job_id          = isset( $job_id ) ? absint( $job_id ) : 0;
 $show_job_select = ! empty( $show_job_select );
 $jobs            = isset( $jobs ) && is_array( $jobs ) ? $jobs : array();

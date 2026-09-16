@@ -102,10 +102,13 @@ class ESC_Portal_Shortcodes {
 				}
 			}
 		} elseif ( ESC_Portal_Users::is_admin( $user ) ) {
-			$template = 'dashboard-admin';
-			$args['users'] = ESC_Portal_Users::query( array( 'number' => 200 ) );
-			$args['jobs']  = ESC_Portal_Employer::jobs_for( $user->id, true );
+			$template             = 'dashboard-admin';
+			$view                 = ESC_Portal_Helpers::current_dashboard_view( 'admin' );
+			$args['view']         = $view;
+			$args['users']        = ESC_Portal_Users::query( array( 'number' => 500 ) );
+			$args['jobs']         = ESC_Portal_Employer::jobs_for( $user->id, true );
 			$args['applications'] = self::applications_for_jobs( array() );
+			$args['user_counts']  = ESC_Portal_Users::counts_by_role();
 		} else {
 			$view = ESC_Portal_Helpers::current_dashboard_view();
 			$aid  = isset( $_GET['assessment'] ) ? absint( $_GET['assessment'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -118,7 +121,7 @@ class ESC_Portal_Shortcodes {
 			$args['forms']            = ESC_Portal_Forms::all();
 			$args['requests']         = ESC_Portal_Forms::requests_for_user( $user->id );
 			$args['profile']          = ESC_Portal_Profile::get( $user->id );
-			$args['settings']         = ESC_Portal_Helpers::get_settings();
+			$args['settings']         = ESC_Portal_Helpers::public_settings();
 			$args['jobs']             = get_posts(
 				array(
 					'post_type'      => 'esc_job',
@@ -152,7 +155,7 @@ class ESC_Portal_Shortcodes {
 
 		$html = ESC_Portal_Helpers::get_template( $template, $args );
 
-		if ( in_array( $template, array( 'dashboard-seeker', 'dashboard-employer' ), true ) ) {
+		if ( in_array( $template, array( 'dashboard-seeker', 'dashboard-employer', 'dashboard-admin' ), true ) ) {
 			return $html;
 		}
 
@@ -298,7 +301,7 @@ class ESC_Portal_Shortcodes {
 				'open'     => ESC_Portal_Helpers::is_job_open( $job_id ),
 				'existing' => $active,
 				'profile'  => ESC_Portal_Profile::get( $user_id ),
-				'settings' => ESC_Portal_Helpers::get_settings(),
+				'settings' => ESC_Portal_Helpers::public_settings(),
 				'user'     => ESC_Portal_Auth::current_user(),
 			)
 		);

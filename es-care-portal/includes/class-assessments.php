@@ -396,6 +396,10 @@ class ESC_Portal_Assessments {
 			ESC_Portal_Helpers::redirect_notice( $dash, 'not-allowed', 'error' );
 		}
 
+		$user       = ESC_Portal_Auth::current_user();
+		$assessment = self::get( $assessment_id );
+		ESC_Portal_Emails::assessment_received( $user, $assessment, $result );
+
 		ESC_Portal_Helpers::redirect_notice( ESC_Portal_Helpers::dashboard_url( 'results' ), $result->passed ? 'assessment-passed' : 'assessment-failed', $result->passed ? 'success' : 'info' );
 	}
 }

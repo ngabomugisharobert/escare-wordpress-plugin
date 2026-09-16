@@ -31,6 +31,7 @@ class ESC_Portal_Plugin {
 	 */
 	private function hooks() {
 		ESC_Portal_Activator::maybe_upgrade();
+		ESC_Portal_Users::ensure_tables();
 
 		add_action( 'init', array( $this, 'load_textdomain' ) );
 		add_action( 'init', array( 'ESC_Portal_Roles', 'add_roles' ), 5 );
@@ -39,12 +40,21 @@ class ESC_Portal_Plugin {
 		add_action( 'init', array( 'ESC_Portal_CPT_Application', 'register' ) );
 
 		ESC_Portal_Auth::init();
+		ESC_Portal_Emails::init();
 		ESC_Portal_Profile::init();
 		ESC_Portal_Apply::init();
 		ESC_Portal_Uploads::init();
+		ESC_Portal_Security::init();
 		ESC_Portal_Shortcodes::init();
+		ESC_Portal_Blocks::init();
 		ESC_Portal_CPT_Job::init_admin();
 		ESC_Portal_Admin::init();
+
+		add_action( 'elementor/loaded', array( 'ESC_Portal_Elementor', 'init' ) );
+
+		if ( did_action( 'elementor/loaded' ) ) {
+			ESC_Portal_Elementor::init();
+		}
 
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_public' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin' ) );
@@ -74,12 +84,23 @@ class ESC_Portal_Plugin {
 			ESC_PORTAL_VERSION
 		);
 
+		wp_add_inline_style( 'esc-portal', ESC_Portal_Blocks::theme_css() );
+
 		wp_enqueue_script(
 			'esc-portal',
 			ESC_PORTAL_URL . 'public/js/portal.js',
 			array(),
 			ESC_PORTAL_VERSION,
 			true
+		);
+
+		wp_localize_script(
+			'esc-portal',
+			'escPortal',
+			array(
+				'showPassword' => __( 'Show password', 'es-care-portal' ),
+				'hidePassword' => __( 'Hide password', 'es-care-portal' ),
+			)
 		);
 	}
 
@@ -129,6 +150,16 @@ class ESC_Portal_Plugin {
 			$classes[] = 'esc-portal';
 		}
 
+		if ( is_page() ) {
+			$auth_pages = array( 'register', 'login', 'lost-password', 'reset-password' );
+			foreach ( $auth_pages as $slug ) {
+				if ( get_queried_object_id() === ESC_Portal_Helpers::get_page_id( $slug ) ) {
+					$classes[] = 'esc-portal-auth';
+					break;
+				}
+			}
+		}
+
 		return $classes;
 	}
 
@@ -152,6 +183,10 @@ class ESC_Portal_Plugin {
 				'esc_job_form',
 				'esc_lost_password',
 				'esc_reset_password',
+				'esc_dash_sidebar',
+				'esc_dash_home',
+				'esc_dash_view',
+				'esc_portal_notice',
 			);
 
 			if ( $post ) {
@@ -159,6 +194,11 @@ class ESC_Portal_Plugin {
 					if ( has_shortcode( (string) $post->post_content, $tag ) ) {
 						return true;
 					}
+				}
+
+				// Elementor-built pages store data in post meta, not classic shortcodes.
+				if ( get_post_meta( $post->ID, '_elementor_edit_mode', true ) ) {
+					return true;
 				}
 			}
 

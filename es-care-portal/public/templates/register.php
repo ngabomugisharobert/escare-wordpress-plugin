@@ -9,28 +9,33 @@
 
 defined( 'ABSPATH' ) || exit;
 ?>
-<div class="esc-portal-wrap">
+<div class="esc-portal-wrap esc-portal-wrap--auth">
 	<?php include ESC_PORTAL_DIR . 'public/templates/partials/account-nav.php'; ?>
-	<div class="esc-card esc-card--narrow">
+	<div class="esc-card esc-card--register">
 		<p class="esc-kicker"><?php esc_html_e( 'ES Care Services', 'es-care-portal' ); ?></p>
 		<h2><?php esc_html_e( 'Create a portal account', 'es-care-portal' ); ?></h2>
-		<p><?php esc_html_e( 'Job seekers and employers register here. This is not the WordPress site login.', 'es-care-portal' ); ?></p>
+		<p><?php esc_html_e( 'Choose whether you are looking for work or hiring, then create your portal account.', 'es-care-portal' ); ?></p>
 		<form class="esc-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="esc-register-form">
 			<?php wp_nonce_field( 'esc_register', 'esc_register_nonce' ); ?>
 			<input type="hidden" name="action" value="esc_register">
 			<?php if ( ! empty( $redirect_to ) ) : ?>
 				<input type="hidden" name="redirect_to" value="<?php echo esc_attr( $redirect_to ); ?>">
 			<?php endif; ?>
-			<fieldset class="esc-fieldset">
-				<legend><?php esc_html_e( 'I am a', 'es-care-portal' ); ?></legend>
-				<label class="esc-check">
-					<input type="radio" name="esc_role" value="job_seeker" checked>
-					<?php esc_html_e( 'Job Seeker', 'es-care-portal' ); ?>
-				</label>
-				<label class="esc-check">
-					<input type="radio" name="esc_role" value="employer">
-					<?php esc_html_e( 'Employer', 'es-care-portal' ); ?>
-				</label>
+			<fieldset class="esc-fieldset esc-role-picker">
+				<legend><?php esc_html_e( 'I am a…', 'es-care-portal' ); ?> <span class="esc-req" aria-hidden="true">*</span></legend>
+				<p class="esc-help"><?php esc_html_e( 'Select one to continue. This sets up the right dashboard for you.', 'es-care-portal' ); ?></p>
+				<div class="esc-role-options" role="radiogroup" aria-required="true" aria-label="<?php esc_attr_e( 'Account type', 'es-care-portal' ); ?>">
+					<label class="esc-role-option">
+						<input type="radio" name="esc_role" value="job_seeker" required>
+						<span class="esc-role-option__title"><?php esc_html_e( 'Job Seeker', 'es-care-portal' ); ?></span>
+						<span class="esc-role-option__desc"><?php esc_html_e( 'Find caregiving jobs and manage applications.', 'es-care-portal' ); ?></span>
+					</label>
+					<label class="esc-role-option">
+						<input type="radio" name="esc_role" value="employer" required>
+						<span class="esc-role-option__title"><?php esc_html_e( 'Employer', 'es-care-portal' ); ?></span>
+						<span class="esc-role-option__desc"><?php esc_html_e( 'Post jobs and review candidates.', 'es-care-portal' ); ?></span>
+					</label>
+				</div>
 			</fieldset>
 			<div class="esc-grid">
 				<p class="esc-field">
@@ -56,7 +61,8 @@ defined( 'ABSPATH' ) || exit;
 			</p>
 			<p class="esc-field">
 				<label for="esc_password"><?php esc_html_e( 'Password', 'es-care-portal' ); ?></label>
-				<input type="password" id="esc_password" name="esc_password" required minlength="8" autocomplete="new-password">
+				<input type="password" id="esc_password" name="esc_password" required minlength="8" autocomplete="new-password" aria-describedby="esc-password-rules">
+				<span class="esc-help" id="esc-password-rules"><?php esc_html_e( '8+ characters with uppercase, lowercase, and a number.', 'es-care-portal' ); ?></span>
 			</p>
 			<p class="esc-field">
 				<label for="esc_password_confirm"><?php esc_html_e( 'Confirm password', 'es-care-portal' ); ?></label>

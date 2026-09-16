@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       ES Care Portal
  * Plugin URI:        https://escare-services.com
- * Description:       Applicant registration, login, job listings, and job applications for ES Care Services LLC.
- * Version:           1.2.0
+ * Description:       Applicant registration, login, job listings, applications, and Elementor-ready portal modules for ES Care Services LLC.
+ * Version:           1.7.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            ES Care Services LLC
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'ESC_PORTAL_VERSION', '1.2.0' );
+define( 'ESC_PORTAL_VERSION', '1.7.1' );
 define( 'ESC_PORTAL_FILE', __FILE__ );
 define( 'ESC_PORTAL_DIR', plugin_dir_path( __FILE__ ) );
 define( 'ESC_PORTAL_URL', plugin_dir_url( __FILE__ ) );
@@ -38,7 +38,10 @@ $esc_portal_includes = array(
 	'class-assessments.php',
 	'class-forms.php',
 	'class-account.php',
+	'class-security.php',
+	'class-blocks.php',
 	'class-shortcodes.php',
+	'class-elementor.php',
 	'class-admin.php',
 	'class-activator.php',
 	'class-plugin.php',

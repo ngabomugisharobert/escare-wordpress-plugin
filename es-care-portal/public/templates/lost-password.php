@@ -7,7 +7,7 @@
 
 defined( 'ABSPATH' ) || exit;
 ?>
-<div class="esc-portal-wrap">
+<div class="esc-portal-wrap esc-portal-wrap--auth">
 	<?php include ESC_PORTAL_DIR . 'public/templates/partials/account-nav.php'; ?>
 	<div class="esc-card esc-card--narrow">
 		<h2><?php esc_html_e( 'Reset your password', 'es-care-portal' ); ?></h2>

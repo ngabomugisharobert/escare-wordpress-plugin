@@ -90,6 +90,11 @@ class ESC_Portal_Forms {
 		if ( ! file_exists( $dir . '/.htaccess' ) ) {
 			file_put_contents( $dir . '/.htaccess', "Require all denied\nDeny from all\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 		}
+
+		if ( ! file_exists( $dir . '/web.config' ) ) {
+			$rules = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration><system.webServer><security><authorization><remove users=\"*\" roles=\"\" verbs=\"\"/><add accessType=\"Deny\" users=\"*\"/></authorization></security></system.webServer></configuration>\n";
+			file_put_contents( $dir . '/web.config', $rules ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		}
 	}
 
 	/**
@@ -264,6 +269,8 @@ class ESC_Portal_Forms {
 		header( 'Content-Type: ' . ( ! empty( $mime['type'] ) ? $mime['type'] : 'application/octet-stream' ) );
 		header( 'Content-Disposition: attachment; filename="' . $name . '"' );
 		header( 'Content-Length: ' . (string) filesize( $path ) );
+		header( 'X-Content-Type-Options: nosniff' );
+		header( "Content-Security-Policy: sandbox; default-src 'none'" );
 		readfile( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile
 		exit;
 	}
@@ -321,24 +328,7 @@ class ESC_Portal_Forms {
 			array( '%d', '%s', '%s', '%s' )
 		);
 
-		$settings = ESC_Portal_Helpers::get_settings();
-
-		if ( ! empty( $settings['notification_email'] ) ) {
-			wp_mail(
-				$settings['notification_email'],
-				sprintf(
-					/* translators: %s: subject */
-					__( 'Service request: %s', 'es-care-portal' ),
-					$subject
-				),
-				sprintf(
-					"%s (%s)\n\n%s",
-					$user->display_name,
-					$user->email,
-					$message
-				)
-			);
-		}
+		ESC_Portal_Emails::service_request_received( $user, $subject, $message );
 
 		ESC_Portal_Helpers::redirect_notice( $fallback, 'request-sent', 'success' );
 	}

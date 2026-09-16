@@ -48,6 +48,7 @@ class ESC_Portal_Uploads {
 
 		$htaccess = $dir . '/.htaccess';
 		$index    = $dir . '/index.php';
+		$webconfig = $dir . '/web.config';
 
 		if ( ! file_exists( $htaccess ) ) {
 			$rules  = "<IfModule mod_authz_core.c>\nRequire all denied\n</IfModule>\n";
@@ -57,6 +58,11 @@ class ESC_Portal_Uploads {
 
 		if ( ! file_exists( $index ) ) {
 			file_put_contents( $index, "<?php\n// Silence is golden.\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		}
+
+		if ( ! file_exists( $webconfig ) ) {
+			$rules = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration><system.webServer><security><authorization><remove users=\"*\" roles=\"\" verbs=\"\"/><add accessType=\"Deny\" users=\"*\"/></authorization></security></system.webServer></configuration>\n";
+			file_put_contents( $webconfig, $rules ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 		}
 	}
 
@@ -218,6 +224,7 @@ class ESC_Portal_Uploads {
 		header( 'Content-Disposition: attachment; filename="' . $download_name . '"' );
 		header( 'Content-Length: ' . (string) filesize( $path ) );
 		header( 'X-Content-Type-Options: nosniff' );
+		header( "Content-Security-Policy: sandbox; default-src 'none'" );
 
 		readfile( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile
 		exit;

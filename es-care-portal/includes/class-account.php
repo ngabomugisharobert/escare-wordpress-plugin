@@ -37,11 +37,13 @@ class ESC_Portal_Account {
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'password-mismatch', 'error' );
 		}
 
-		if ( strlen( $new ) < 8 ) {
+		if ( ! ESC_Portal_Users::is_strong_password( $new ) ) {
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'weak-password', 'error' );
 		}
 
 		ESC_Portal_Users::update( $user->id, array( 'password' => $new ) );
+		ESC_Portal_Auth::revoke_user_sessions( $user->id );
+		ESC_Portal_Auth::login_user( $user->id, true );
 		ESC_Portal_Helpers::redirect_notice( $fallback, 'password-changed', 'success' );
 	}
 
@@ -66,12 +68,7 @@ class ESC_Portal_Account {
 		}
 
 		$user_id = ESC_Portal_Auth::current_user_id();
-
-		global $wpdb;
-
-		$wpdb->delete( ESC_Portal_Users::sessions_table(), array( 'user_id' => $user_id ), array( '%d' ) );
-		$wpdb->delete( ESC_Portal_Users::meta_table(), array( 'user_id' => $user_id ), array( '%d' ) );
-		$wpdb->delete( ESC_Portal_Users::table(), array( 'id' => $user_id ), array( '%d' ) );
+		ESC_Portal_Users::delete( $user_id );
 
 		ESC_Portal_Auth::logout_user();
 		ESC_Portal_Helpers::redirect_notice( ESC_Portal_Helpers::get_page_url( 'login' ), 'account-deleted', 'info' );

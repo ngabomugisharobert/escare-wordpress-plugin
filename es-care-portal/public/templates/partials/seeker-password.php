@@ -9,7 +9,7 @@ defined( 'ABSPATH' ) || exit;
 ?>
 <section class="esc-dash-panel">
 	<h2 class="esc-dash-title"><?php esc_html_e( 'Change Password', 'es-care-portal' ); ?></h2>
-	<p class="esc-dash-copy"><?php esc_html_e( 'Use a password that is at least 8 characters. You will stay signed in after it is updated.', 'es-care-portal' ); ?></p>
+	<p class="esc-dash-copy"><?php esc_html_e( 'Use 8+ characters with uppercase, lowercase, and a number. Other sessions will be signed out after the update.', 'es-care-portal' ); ?></p>
 
 	<form class="esc-form esc-card esc-card--narrow" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 		<?php wp_nonce_field( 'esc_change_password', 'esc_password_nonce' ); ?>

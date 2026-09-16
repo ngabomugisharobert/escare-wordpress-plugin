@@ -62,6 +62,7 @@ class ESC_Portal_Employer {
 		$job_id = isset( $_POST['esc_job_id'] ) ? absint( $_POST['esc_job_id'] ) : 0;
 		$title  = isset( $_POST['esc_job_title'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_job_title'] ) ) : '';
 		$body   = isset( $_POST['esc_job_content'] ) ? wp_kses_post( wp_unslash( $_POST['esc_job_content'] ) ) : '';
+		$updated = (bool) $job_id;
 
 		if ( ! $title || ! $body ) {
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'required', 'error' );
@@ -133,6 +134,7 @@ class ESC_Portal_Employer {
 			wp_set_object_terms( $job_id, array( $cat ), 'esc_job_category' );
 		}
 
+		ESC_Portal_Emails::job_saved( $user, $job_id, $updated );
 		ESC_Portal_Helpers::redirect_notice( ESC_Portal_Helpers::dashboard_url( 'jobs' ), 'job-saved', 'success' );
 	}
 

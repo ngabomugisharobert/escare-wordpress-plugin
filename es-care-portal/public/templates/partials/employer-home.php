@@ -8,27 +8,30 @@
 defined( 'ABSPATH' ) || exit;
 
 $manage = array(
-	array(
+	'post'       => array(
 		'url'   => ESC_Portal_Helpers::dashboard_url( 'post' ),
 		'label' => __( 'Post a Job', 'es-care-portal' ),
 		'icon'  => '<svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="currentColor" stroke-width="3"><path d="M32 12v40M12 32h40"/></svg>',
 	),
-	array(
+	'jobs'       => array(
 		'url'   => ESC_Portal_Helpers::dashboard_url( 'jobs' ),
 		'label' => __( 'Company Jobs', 'es-care-portal' ),
 		'icon'  => '<svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="currentColor" stroke-width="3"><rect x="10" y="22" width="44" height="32" rx="4"/><path d="M24 22v-6a8 8 0 0 1 8-8h0a8 8 0 0 1 8 8v6"/><path d="M10 34h44"/></svg>',
 	),
-	array(
+	'profile'    => array(
 		'url'   => ESC_Portal_Helpers::dashboard_url( 'profile' ),
 		'label' => __( 'Edit Profile', 'es-care-portal' ),
 		'icon'  => '<svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="currentColor" stroke-width="3"><path d="M14 10h28l12 12v32H14z"/><path d="M42 10v12h12"/><path d="M22 38l6 6 14-14"/></svg>',
 	),
-	array(
+	'membership' => array(
 		'url'   => ESC_Portal_Helpers::dashboard_url( 'membership' ),
 		'label' => __( 'Membership', 'es-care-portal' ),
 		'icon'  => '<svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="currentColor" stroke-width="3"><circle cx="22" cy="22" r="8"/><circle cx="42" cy="24" r="7"/><path d="M6 52c2-10 8-15 16-15s14 5 16 15"/><path d="M34 40c4-2 9-1 14 5 2 3 3 6 4 7"/></svg>',
 	),
 );
+
+$enabled = ESC_Portal_Helpers::public_settings()['tile_employer'];
+$manage  = array_intersect_key( $manage, array_flip( (array) $enabled ) );
 
 $account = array(
 	array(

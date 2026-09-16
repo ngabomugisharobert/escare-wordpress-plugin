@@ -12,6 +12,7 @@ class ESC_Portal_Auth {
 
 	const COOKIE     = 'esc_portal_session';
 	const MAX_FAILS  = 5;
+	const IP_MAX_FAILS = 20;
 	const LOCK_TTL   = 900;
 	const SESSION_TTL = 1209600; // 14 days.
 
@@ -36,6 +37,8 @@ class ESC_Portal_Auth {
 		self::bind( 'esc_delete_job_front', array( 'ESC_Portal_Employer', 'handle_delete_job' ) );
 		self::bind( 'esc_portal_status', array( __CLASS__, 'handle_status' ) );
 		self::bind( 'esc_portal_user', array( __CLASS__, 'handle_user_update' ) );
+		self::bind( 'esc_admin_delete_user', array( __CLASS__, 'handle_admin_delete_user' ) );
+		self::bind( 'esc_admin_delete_application', array( __CLASS__, 'handle_admin_delete_application' ) );
 		self::bind( 'esc_change_password', array( 'ESC_Portal_Account', 'handle_change_password' ) );
 		self::bind( 'esc_delete_account', array( 'ESC_Portal_Account', 'handle_delete_account' ) );
 		self::bind( 'esc_submit_assessment', array( 'ESC_Portal_Assessments', 'handle_submit' ) );
@@ -96,10 +99,16 @@ class ESC_Portal_Auth {
 		global $wpdb;
 
 		$user_id = absint( $user_id );
-		$token   = wp_generate_password( 32, false, false );
+		try {
+			$token = bin2hex( random_bytes( 32 ) );
+		} catch ( Exception $exception ) {
+			$token = wp_generate_password( 64, true, true );
+		}
 		$hash    = self::hash_token( $token );
 		$ttl     = $remember ? self::SESSION_TTL : DAY_IN_SECONDS * 2;
 		$expires = gmdate( 'Y-m-d H:i:s', time() + $ttl );
+
+		$wpdb->query( 'DELETE FROM ' . ESC_Portal_Users::sessions_table() . ' WHERE expires <= UTC_TIMESTAMP()' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 
 		$wpdb->insert(
 			ESC_Portal_Users::sessions_table(),
@@ -116,6 +125,21 @@ class ESC_Portal_Auth {
 
 		self::set_cookie( $user_id . '|' . $token, $ttl );
 		self::$current = ESC_Portal_Users::get( $user_id );
+	}
+
+	/**
+	 * Revoke every active session belonging to a dashboard user.
+	 *
+	 * @param int $user_id Dashboard user ID.
+	 */
+	public static function revoke_user_sessions( $user_id ) {
+		global $wpdb;
+
+		$wpdb->delete(
+			ESC_Portal_Users::sessions_table(),
+			array( 'user_id' => absint( $user_id ) ),
+			array( '%d' )
+		);
 	}
 
 	/**
@@ -161,12 +185,12 @@ class ESC_Portal_Auth {
 		$phone    = isset( $_POST['esc_phone'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_phone'] ) ) : '';
 		$password = isset( $_POST['esc_password'] ) ? (string) wp_unslash( $_POST['esc_password'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$confirm  = isset( $_POST['esc_password_confirm'] ) ? (string) wp_unslash( $_POST['esc_password_confirm'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		$role     = isset( $_POST['esc_role'] ) ? sanitize_key( wp_unslash( $_POST['esc_role'] ) ) : ESC_Portal_Users::ROLE_SEEKER;
+		$role     = isset( $_POST['esc_role'] ) ? sanitize_key( wp_unslash( $_POST['esc_role'] ) ) : '';
 		$company  = isset( $_POST['esc_company_name'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_company_name'] ) ) : '';
 		$redirect = ESC_Portal_Helpers::requested_redirect();
 
 		if ( ! in_array( $role, ESC_Portal_Users::public_roles(), true ) ) {
-			$role = ESC_Portal_Users::ROLE_SEEKER;
+			ESC_Portal_Helpers::redirect_notice( $fallback, 'role-required', 'error' );
 		}
 
 		if ( ! $first || ! $last || ! $email || ! $phone || ! $password ) {
@@ -185,7 +209,7 @@ class ESC_Portal_Auth {
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'password-mismatch', 'error' );
 		}
 
-		if ( strlen( $password ) < 8 ) {
+		if ( ! ESC_Portal_Users::is_strong_password( $password ) ) {
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'weak-password', 'error' );
 		}
 
@@ -273,6 +297,14 @@ class ESC_Portal_Auth {
 		}
 
 		$email = isset( $_POST['esc_email'] ) ? sanitize_email( wp_unslash( $_POST['esc_email'] ) ) : '';
+		$ip    = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+		$rate_key = 'esc_reset_rate_' . hash_hmac( 'sha256', strtolower( $email ) . '|' . $ip, wp_salt( 'nonce' ) );
+
+		if ( get_transient( $rate_key ) ) {
+			ESC_Portal_Helpers::redirect_notice( $fallback, 'reset-sent', 'success' );
+		}
+
+		set_transient( $rate_key, 1, 5 * MINUTE_IN_SECONDS );
 		$user  = $email ? ESC_Portal_Users::get_by_email( $email ) : null;
 
 		if ( $user ) {
@@ -323,7 +355,7 @@ class ESC_Portal_Auth {
 			ESC_Portal_Helpers::redirect_notice( $back, 'password-mismatch', 'error' );
 		}
 
-		if ( strlen( $password ) < 8 ) {
+		if ( ! ESC_Portal_Users::is_strong_password( $password ) ) {
 			ESC_Portal_Helpers::redirect_notice( $back, 'weak-password', 'error' );
 		}
 
@@ -335,6 +367,7 @@ class ESC_Portal_Auth {
 				'reset_expires' => '',
 			)
 		);
+		self::revoke_user_sessions( $user->id );
 
 		ESC_Portal_Helpers::redirect_notice( ESC_Portal_Helpers::get_page_url( 'login' ), 'password-reset', 'success' );
 	}
@@ -372,7 +405,13 @@ class ESC_Portal_Auth {
 		}
 
 		ESC_Portal_Helpers::redirect_notice(
-			add_query_arg( 'application', $application_id, $dashboard ),
+			add_query_arg(
+				array(
+					'esc_view'    => 'applications',
+					'application' => $application_id,
+				),
+				$dashboard
+			),
 			'status-saved',
 			'success'
 		);
@@ -416,9 +455,62 @@ class ESC_Portal_Auth {
 
 		$dest = current_user_can( 'manage_options' ) && isset( $_POST['esc_from_wp'] )
 			? admin_url( 'admin.php?page=esc-portal-users' )
-			: add_query_arg( 'users', '1', $dashboard );
+			: ESC_Portal_Helpers::dashboard_url( 'users' );
 
 		ESC_Portal_Helpers::redirect_notice( $dest, 'user-updated', 'success' );
+	}
+
+	/**
+	 * Portal admin permanently deletes another dashboard user.
+	 */
+	public static function handle_admin_delete_user() {
+		$destination = ESC_Portal_Helpers::dashboard_url( 'users' );
+
+		if ( ! self::is_logged_in() || ! ESC_Portal_Users::is_admin() ) {
+			ESC_Portal_Helpers::redirect_notice( $destination, 'not-allowed', 'error' );
+		}
+
+		$user_id = isset( $_POST['esc_user_id'] ) ? absint( $_POST['esc_user_id'] ) : 0;
+		$nonce   = isset( $_POST['esc_delete_user_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_delete_user_nonce'] ) ) : '';
+
+		if ( ! $user_id || ! wp_verify_nonce( $nonce, 'esc_admin_delete_user_' . $user_id ) ) {
+			ESC_Portal_Helpers::redirect_notice( $destination, 'nonce', 'error' );
+		}
+
+		if ( $user_id === self::current_user_id() ) {
+			ESC_Portal_Helpers::redirect_notice( $destination, 'cannot-delete-self', 'error' );
+		}
+
+		if ( ! ESC_Portal_Users::delete( $user_id ) ) {
+			ESC_Portal_Helpers::redirect_notice( $destination, 'not-allowed', 'error' );
+		}
+
+		ESC_Portal_Helpers::redirect_notice( $destination, 'user-deleted', 'success' );
+	}
+
+	/**
+	 * Portal admin moves an application to Trash.
+	 */
+	public static function handle_admin_delete_application() {
+		$destination = ESC_Portal_Helpers::dashboard_url( 'applications' );
+
+		if ( ! self::is_logged_in() || ! ESC_Portal_Users::is_admin() ) {
+			ESC_Portal_Helpers::redirect_notice( $destination, 'not-allowed', 'error' );
+		}
+
+		$application_id = isset( $_POST['esc_application_id'] ) ? absint( $_POST['esc_application_id'] ) : 0;
+		$nonce          = isset( $_POST['esc_delete_application_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_delete_application_nonce'] ) ) : '';
+		$application    = $application_id ? get_post( $application_id ) : null;
+
+		if ( ! $application_id || ! wp_verify_nonce( $nonce, 'esc_admin_delete_application_' . $application_id ) ) {
+			ESC_Portal_Helpers::redirect_notice( $destination, 'nonce', 'error' );
+		}
+
+		if ( ! $application || 'esc_application' !== $application->post_type || ! wp_trash_post( $application_id ) ) {
+			ESC_Portal_Helpers::redirect_notice( $destination, 'not-allowed', 'error' );
+		}
+
+		ESC_Portal_Helpers::redirect_notice( $destination, 'application-deleted', 'success' );
 	}
 
 	/**
@@ -565,7 +657,16 @@ class ESC_Portal_Auth {
 	private static function lock_key( $login ) {
 		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
 
-		return 'esc_login_fail_' . md5( strtolower( $login ) . '|' . $ip );
+		return 'esc_login_fail_' . hash_hmac( 'sha256', strtolower( $login ) . '|' . $ip, wp_salt( 'nonce' ) );
+	}
+
+	/**
+	 * @return string
+	 */
+	private static function ip_lock_key() {
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+
+		return 'esc_login_ip_' . hash_hmac( 'sha256', $ip, wp_salt( 'nonce' ) );
 	}
 
 	/**
@@ -573,16 +674,21 @@ class ESC_Portal_Auth {
 	 * @return bool
 	 */
 	private static function is_locked( $login ) {
-		return (int) get_transient( self::lock_key( $login ) ) >= self::MAX_FAILS;
+		return (int) get_transient( self::lock_key( $login ) ) >= self::MAX_FAILS
+			|| (int) get_transient( self::ip_lock_key() ) >= self::IP_MAX_FAILS;
 	}
 
 	/**
 	 * @param string $login Login.
 	 */
 	private static function record_failure( $login ) {
-		$key   = self::lock_key( $login );
-		$fails = (int) get_transient( $key ) + 1;
+		$key      = self::lock_key( $login );
+		$ip_key   = self::ip_lock_key();
+		$fails    = (int) get_transient( $key ) + 1;
+		$ip_fails = (int) get_transient( $ip_key ) + 1;
+
 		set_transient( $key, $fails, self::LOCK_TTL );
+		set_transient( $ip_key, $ip_fails, self::LOCK_TTL );
 	}
 
 	/**

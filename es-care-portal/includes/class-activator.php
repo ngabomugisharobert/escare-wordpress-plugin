@@ -23,6 +23,7 @@ class ESC_Portal_Activator {
 		self::create_pages();
 		self::seed_job_categories();
 		self::ensure_settings();
+		self::apply_pointlab_theme();
 		ESC_Portal_Uploads::ensure_directory();
 		flush_rewrite_rules();
 		update_option( ESC_Portal_Helpers::VERSION_KEY, ESC_PORTAL_VERSION, false );
@@ -44,7 +45,24 @@ class ESC_Portal_Activator {
 		ESC_Portal_Roles::add_roles();
 		self::create_pages();
 		ESC_Portal_Uploads::ensure_directory();
+		self::apply_pointlab_theme();
 		update_option( ESC_Portal_Helpers::VERSION_KEY, ESC_PORTAL_VERSION, false );
+	}
+
+	/**
+	 * Align saved theme colors with the PointLab site palette.
+	 */
+	public static function apply_pointlab_theme() {
+		$settings = ESC_Portal_Helpers::get_settings();
+		$defaults = ESC_Portal_Helpers::default_settings();
+
+		$settings['color_accent']         = $defaults['color_accent'];
+		$settings['color_sidebar']        = $defaults['color_sidebar'];
+		$settings['color_sidebar_header'] = $defaults['color_sidebar_header'];
+		$settings['color_tile']           = $defaults['color_tile'];
+		$settings['color_cta']            = $defaults['color_cta'];
+
+		ESC_Portal_Helpers::update_settings( $settings );
 	}
 
 	/**

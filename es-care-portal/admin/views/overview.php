@@ -7,13 +7,42 @@
  * @var int      $pending_count Pending applications.
  * @var int      $open_jobs     Open jobs.
  * @var WP_Post[] $recent       Recent applications.
+ * @var array<string,int> $user_counts Dashboard user counts.
+ * @var string $table_name Dashboard users table.
  */
 
 defined( 'ABSPATH' ) || exit;
+
+if ( ! isset( $user_counts ) || ! is_array( $user_counts ) ) {
+	$user_counts = array(
+		'job_seeker' => 0,
+		'employer'   => 0,
+		'admin'      => 0,
+	);
+}
+
+if ( empty( $table_name ) ) {
+	$table_name = ESC_Portal_Users::table();
+}
 ?>
 <div class="wrap esc-admin">
 	<h1><?php esc_html_e( 'ES Care Portal', 'es-care-portal' ); ?></h1>
 	<p class="esc-admin-lede"><?php esc_html_e( 'Jobs, applicants, and hiring status for ES Care Services.', 'es-care-portal' ); ?></p>
+
+	<div class="notice notice-info inline">
+		<p>
+			<?php
+			echo esc_html(
+				sprintf(
+					/* translators: %s: database table name */
+					__( 'Dashboard accounts (job seeker, employer, portal admin) live in %s. WordPress Administrators stay in Users → All Users and manage the site separately.', 'es-care-portal' ),
+					$table_name
+				)
+			);
+			?>
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=esc-portal-users' ) ); ?>"><?php esc_html_e( 'Manage dashboard users', 'es-care-portal' ); ?></a>
+		</p>
+	</div>
 
 	<div class="esc-admin-stats">
 		<a class="esc-admin-stat" href="<?php echo esc_url( admin_url( 'admin.php?page=esc-applications&esc_status=pending' ) ); ?>">
@@ -23,6 +52,10 @@ defined( 'ABSPATH' ) || exit;
 		<a class="esc-admin-stat" href="<?php echo esc_url( admin_url( 'edit.php?post_type=esc_job' ) ); ?>">
 			<strong><?php echo esc_html( (string) $open_jobs ); ?></strong>
 			<span><?php esc_html_e( 'Open jobs', 'es-care-portal' ); ?></span>
+		</a>
+		<a class="esc-admin-stat" href="<?php echo esc_url( admin_url( 'admin.php?page=esc-portal-users' ) ); ?>">
+			<strong><?php echo esc_html( (string) ( (int) $user_counts['job_seeker'] + (int) $user_counts['employer'] + (int) $user_counts['admin'] ) ); ?></strong>
+			<span><?php esc_html_e( 'Dashboard users', 'es-care-portal' ); ?></span>
 		</a>
 	</div>
 
