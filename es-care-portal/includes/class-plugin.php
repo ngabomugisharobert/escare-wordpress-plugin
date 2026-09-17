@@ -31,16 +31,17 @@ class ESC_Portal_Plugin {
 	 */
 	private function hooks() {
 		ESC_Portal_Activator::maybe_upgrade();
-		ESC_Portal_Users::ensure_tables();
 
 		add_action( 'init', array( $this, 'load_textdomain' ) );
-		add_action( 'init', array( 'ESC_Portal_Roles', 'add_roles' ), 5 );
 		add_action( 'init', array( 'ESC_Portal_CPT_Job', 'register' ) );
 		add_action( 'init', array( 'ESC_Portal_CPT_Job', 'register_taxonomy' ) );
 		add_action( 'init', array( 'ESC_Portal_CPT_Application', 'register' ) );
 
+		ESC_Portal_CSRF::init();
 		ESC_Portal_Auth::init();
 		ESC_Portal_Emails::init();
+		ESC_Portal_Mail_Queue::init();
+		ESC_Portal_Privacy::init();
 		ESC_Portal_Profile::init();
 		ESC_Portal_Apply::init();
 		ESC_Portal_Uploads::init();
@@ -98,8 +99,13 @@ class ESC_Portal_Plugin {
 			'esc-portal',
 			'escPortal',
 			array(
-				'showPassword' => __( 'Show password', 'es-care-portal' ),
-				'hidePassword' => __( 'Hide password', 'es-care-portal' ),
+				'showPassword'  => __( 'Show password', 'es-care-portal' ),
+				'hidePassword'  => __( 'Hide password', 'es-care-portal' ),
+				'resumeTooBig'  => __( 'That resume is larger than the allowed file size.', 'es-care-portal' ),
+				'zeroResults'   => __( 'No matching rows on this page.', 'es-care-portal' ),
+				'resultCount'   => __( '%1$s of %2$s on this page (%3$s total)', 'es-care-portal' ),
+				'moderationOk'  => __( 'Approve this listing?', 'es-care-portal' ),
+				'verifyResend'  => __( 'Send another verification email?', 'es-care-portal' ),
 			)
 		);
 	}
@@ -183,6 +189,7 @@ class ESC_Portal_Plugin {
 				'esc_job_form',
 				'esc_lost_password',
 				'esc_reset_password',
+				'esc_contact',
 				'esc_dash_sidebar',
 				'esc_dash_home',
 				'esc_dash_view',

@@ -16,23 +16,54 @@ class ESC_Portal_Employer {
 	 * @param bool $all     All jobs.
 	 * @return WP_Post[]
 	 */
-	public static function jobs_for( $user_id, $all = false ) {
-		$args = array(
-			'post_type'      => 'esc_job',
-			'post_status'    => array( 'publish', 'draft' ),
-			'posts_per_page' => 100,
-			'orderby'        => 'date',
-			'order'          => 'DESC',
+	public static function jobs_for( $user_id, $all = false, $args = array() ) {
+		$args = wp_parse_args(
+			$args,
+			array(
+				'posts_per_page' => 25,
+				'paged'          => 1,
+				's'              => '',
+				'post_status'    => array( 'publish', 'draft', 'pending' ),
+				'meta_status'    => '',
+			)
 		);
 
+		$query_args = array(
+			'post_type'      => 'esc_job',
+			'post_status'    => $args['post_status'],
+			'posts_per_page' => min( 100, max( 1, absint( $args['posts_per_page'] ) ) ),
+			'paged'          => max( 1, absint( $args['paged'] ) ),
+			'orderby'        => 'date',
+			'order'          => 'DESC',
+			's'              => $args['s'],
+		);
+
+		$meta_query = array();
+
 		if ( ! $all ) {
-			$args['meta_key']   = '_esc_employer_id';
-			$args['meta_value'] = (int) $user_id;
+			$meta_query[] = array(
+				'key'   => '_esc_employer_id',
+				'value' => (int) $user_id,
+			);
 		}
 
-		$query = new WP_Query( $args );
+		if ( ! empty( $args['meta_status'] ) && isset( ESC_Portal_Helpers::job_statuses()[ $args['meta_status'] ] ) ) {
+			$meta_query[] = array(
+				'key'   => '_esc_job_status',
+				'value' => $args['meta_status'],
+			);
+		}
 
-		return $query->posts;
+		if ( $meta_query ) {
+			if ( count( $meta_query ) > 1 ) {
+				$meta_query['relation'] = 'AND';
+			}
+			$query_args['meta_query'] = $meta_query;
+		}
+
+		$query = new WP_Query( $query_args );
+
+		return $query;
 	}
 
 	/**
@@ -59,6 +90,10 @@ class ESC_Portal_Employer {
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'nonce', 'error' );
 		}
 
+		if ( ! ESC_Portal_Rate_Limit::allow( 'job_publish', (string) $user->id ) ) {
+			ESC_Portal_Helpers::redirect_notice( $fallback, 'rate-limited', 'error' );
+		}
+
 		$job_id = isset( $_POST['esc_job_id'] ) ? absint( $_POST['esc_job_id'] ) : 0;
 		$title  = isset( $_POST['esc_job_title'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_job_title'] ) ) : '';
 		$body   = isset( $_POST['esc_job_content'] ) ? wp_kses_post( wp_unslash( $_POST['esc_job_content'] ) ) : '';
@@ -74,21 +109,29 @@ class ESC_Portal_Employer {
 
 		$payload = array(
 			'post_type'    => 'esc_job',
-			'post_status'  => 'publish',
+			'post_status'  => ESC_Portal_Users::is_admin( $user ) ? 'publish' : 'pending',
 			'post_title'   => $title,
 			'post_content' => $body,
 			'post_author'  => 1,
 		);
 
 		if ( $job_id ) {
-			$payload['ID'] = $job_id;
-			$result          = wp_update_post( $payload, true );
+			$existing          = get_post( $job_id );
+			$payload['ID']     = $job_id;
+			if ( $existing && 'publish' === $existing->post_status && ESC_Portal_Users::is_admin( $user ) ) {
+				$payload['post_status'] = 'publish';
+			} elseif ( $existing && ! ESC_Portal_Users::is_admin( $user ) ) {
+				$payload['post_status'] = 'pending';
+			} elseif ( $existing ) {
+				$payload['post_status'] = $existing->post_status;
+			}
+			$result = wp_update_post( $payload, true );
 		} else {
 			$result = wp_insert_post( $payload, true );
 		}
 
 		if ( is_wp_error( $result ) || ! $result ) {
-			ESC_Portal_Helpers::redirect_notice( $fallback, 'required', 'error' );
+			ESC_Portal_Helpers::redirect_notice( $fallback, 'save-failed', 'error' );
 		}
 
 		$job_id = (int) $result;
@@ -135,7 +178,12 @@ class ESC_Portal_Employer {
 		}
 
 		ESC_Portal_Emails::job_saved( $user, $job_id, $updated );
-		ESC_Portal_Helpers::redirect_notice( ESC_Portal_Helpers::dashboard_url( 'jobs' ), 'job-saved', 'success' );
+		if ( ! $updated && ! ESC_Portal_Users::is_admin( $user ) ) {
+			ESC_Portal_Emails::job_pending_review( $user, $job_id );
+		}
+		wp_cache_delete( 'esc_job_locations', 'esc_portal' );
+		$notice = ( ! ESC_Portal_Users::is_admin( $user ) && 'publish' !== get_post_status( $job_id ) ) ? 'job-pending' : 'job-saved';
+		ESC_Portal_Helpers::redirect_notice( ESC_Portal_Helpers::dashboard_url( 'jobs' ), $notice, 'success' );
 	}
 
 	/**

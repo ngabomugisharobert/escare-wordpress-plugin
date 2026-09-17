@@ -39,7 +39,6 @@ class ESC_Portal_Profile {
 			'years_at_address'        => (string) ESC_Portal_Users::get_meta( $user_id, 'years_at_address', '' ),
 			'daytime_phone'           => (string) ESC_Portal_Users::get_meta( $user_id, 'daytime_phone', '' ),
 			'evening_phone'           => (string) ESC_Portal_Users::get_meta( $user_id, 'evening_phone', '' ),
-			'drivers_license'         => (string) ESC_Portal_Users::get_meta( $user_id, 'drivers_license', '' ),
 			'professional_license'    => (string) ESC_Portal_Users::get_meta( $user_id, 'professional_license', '' ),
 			'date_of_birth'           => (string) ESC_Portal_Users::get_meta( $user_id, 'date_of_birth', '' ),
 			'salary_desired'          => (string) ESC_Portal_Users::get_meta( $user_id, 'salary_desired', '' ),

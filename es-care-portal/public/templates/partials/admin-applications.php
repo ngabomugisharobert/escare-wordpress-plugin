@@ -5,56 +5,64 @@
  * @package ESC_Portal
  *
  * @var WP_Post[] $applications
+ * @var int       $apps_total
+ * @var array     $table_req
  * @var array     $review
  */
 
 defined( 'ABSPATH' ) || exit;
 
 $applications = is_array( $applications ) ? $applications : array();
+$apps_total   = isset( $apps_total ) ? (int) $apps_total : count( $applications );
+$req          = isset( $table_req ) && is_array( $table_req ) ? $table_req : ESC_Portal_Helpers::table_request( array( 'date', 'status' ) );
+$base         = ESC_Portal_Helpers::dashboard_url( 'applications' );
 ?>
 <div class="esc-dash-toolbar">
 	<h2 class="esc-dash-title esc-dash-title--rule"><?php esc_html_e( 'Applications', 'es-care-portal' ); ?></h2>
 </div>
-<p class="esc-dash-copy"><?php esc_html_e( 'Review candidate applications. Search, filter by status, and sort any column.', 'es-care-portal' ); ?></p>
+<p class="esc-dash-copy"><?php esc_html_e( 'Review candidate applications. Search and pagination cover the complete result set.', 'es-care-portal' ); ?></p>
 
 <?php if ( ! empty( $review ) ) : ?>
 	<?php include ESC_PORTAL_DIR . 'public/templates/partials/review-application.php'; ?>
 <?php endif; ?>
 
 <div class="esc-card esc-data-panel">
-	<div class="esc-data-toolbar" data-esc-table-toolbar="esc-admin-applications">
+	<form method="get" class="esc-data-toolbar" data-esc-table-toolbar="esc-admin-applications" action="<?php echo esc_url( $base ); ?>">
+		<input type="hidden" name="esc_view" value="applications">
+		<input type="hidden" name="_esc_table" value="<?php echo esc_attr( wp_create_nonce( 'esc_portal_table' ) ); ?>">
 		<label class="esc-data-search">
 			<span class="screen-reader-text"><?php esc_html_e( 'Search applications', 'es-care-portal' ); ?></span>
-			<input type="search" class="esc-data-search-input" placeholder="<?php esc_attr_e( 'Search applicant or job…', 'es-care-portal' ); ?>">
+			<input type="search" name="esc_q" class="esc-data-search-input" value="<?php echo esc_attr( $req['search'] ); ?>" placeholder="<?php esc_attr_e( 'Search applicant or job…', 'es-care-portal' ); ?>">
 		</label>
-		<label class="esc-data-filter">
+		<label class="esc-data-filter" for="esc-filter-app-status">
 			<span><?php esc_html_e( 'Status', 'es-care-portal' ); ?></span>
-			<select data-esc-filter="status">
+			<select id="esc-filter-app-status" name="esc_status" data-esc-filter="status">
 				<option value=""><?php esc_html_e( 'All statuses', 'es-care-portal' ); ?></option>
 				<?php foreach ( ESC_Portal_Helpers::application_statuses() as $key => $label ) : ?>
-					<option value="<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $label ); ?></option>
+					<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $req['status'], $key ); ?>><?php echo esc_html( $label ); ?></option>
 				<?php endforeach; ?>
 			</select>
 		</label>
-		<p class="esc-data-count" aria-live="polite"></p>
-	</div>
+		<button type="submit" class="esc-button esc-button--small"><?php esc_html_e( 'Filter', 'es-care-portal' ); ?></button>
+		<p class="esc-data-count" aria-live="polite" data-esc-total="<?php echo esc_attr( (string) $apps_total ); ?>"></p>
+	</form>
 
 	<div class="esc-table-wrap">
 		<table class="esc-table esc-data-table" id="esc-admin-applications">
 			<thead>
 				<tr>
-					<th><button type="button" class="esc-sort" data-esc-sort="applicant"><?php esc_html_e( 'Applicant', 'es-care-portal' ); ?></button></th>
-					<th><button type="button" class="esc-sort" data-esc-sort="email"><?php esc_html_e( 'Email', 'es-care-portal' ); ?></button></th>
-					<th><button type="button" class="esc-sort" data-esc-sort="job"><?php esc_html_e( 'Job', 'es-care-portal' ); ?></button></th>
-					<th><button type="button" class="esc-sort" data-esc-sort="status"><?php esc_html_e( 'Status', 'es-care-portal' ); ?></button></th>
-					<th><button type="button" class="esc-sort" data-esc-sort="date" data-esc-sort-type="date"><?php esc_html_e( 'Submitted', 'es-care-portal' ); ?></button></th>
-					<th><?php esc_html_e( 'Actions', 'es-care-portal' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Applicant', 'es-care-portal' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Email', 'es-care-portal' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Job', 'es-care-portal' ); ?></th>
+					<?php echo ESC_Portal_Helpers::table_th( 'status', __( 'Status', 'es-care-portal' ), $req, $base ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+					<?php echo ESC_Portal_Helpers::table_th( 'date', __( 'Submitted', 'es-care-portal' ), $req, $base ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+					<th scope="col"><?php esc_html_e( 'Actions', 'es-care-portal' ); ?></th>
 				</tr>
 			</thead>
 			<tbody>
 				<?php if ( empty( $applications ) ) : ?>
 					<tr class="esc-data-empty">
-						<td colspan="6"><?php esc_html_e( 'No applications yet.', 'es-care-portal' ); ?></td>
+						<td colspan="6"><?php esc_html_e( 'No applications match this search.', 'es-care-portal' ); ?></td>
 					</tr>
 				<?php else : ?>
 					<?php foreach ( $applications as $application ) : ?>
@@ -66,8 +74,8 @@ $applications = is_array( $applications ) ? $applications : array();
 						$status    = isset( $snap['status'] ) ? (string) $snap['status'] : 'pending';
 						$review_url = add_query_arg(
 							array(
-								'esc_view'     => 'applications',
-								'application'  => $application->ID,
+								'esc_view'    => 'applications',
+								'application' => $application->ID,
 							),
 							ESC_Portal_Helpers::get_page_url( 'dashboard' )
 						);
@@ -104,4 +112,5 @@ $applications = is_array( $applications ) ? $applications : array();
 			</tbody>
 		</table>
 	</div>
+	<?php echo ESC_Portal_Helpers::pagination_html( $apps_total, $req, $base ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 </div>

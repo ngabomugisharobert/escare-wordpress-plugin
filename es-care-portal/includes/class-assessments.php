@@ -57,7 +57,8 @@ class ESC_Portal_Assessments {
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (id),
 				KEY user_id (user_id),
-				KEY assessment_id (assessment_id)
+				KEY assessment_id (assessment_id),
+				KEY user_assessment_id (user_id, assessment_id, id)
 			) {$charset};"
 		);
 
@@ -366,6 +367,10 @@ class ESC_Portal_Assessments {
 			array( '%d', '%d', '%d', '%d', '%s', '%s' )
 		);
 
+		if ( ! $wpdb->insert_id ) {
+			return new WP_Error( 'esc_assessment_save', __( 'The assessment could not be saved.', 'es-care-portal' ) );
+		}
+
 		return (object) array(
 			'id'     => (int) $wpdb->insert_id,
 			'score'  => $score,
@@ -385,6 +390,10 @@ class ESC_Portal_Assessments {
 
 		if ( ! isset( $_POST['esc_assessment_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['esc_assessment_nonce'] ) ), 'esc_submit_assessment' ) ) {
 			ESC_Portal_Helpers::redirect_notice( $dash, 'nonce', 'error' );
+		}
+
+		if ( ! ESC_Portal_Rate_Limit::allow( 'assessment', (string) ESC_Portal_Auth::current_user_id() ) ) {
+			ESC_Portal_Helpers::redirect_notice( $dash, 'rate-limited', 'error' );
 		}
 
 		$assessment_id = isset( $_POST['esc_assessment_id'] ) ? absint( $_POST['esc_assessment_id'] ) : 0;

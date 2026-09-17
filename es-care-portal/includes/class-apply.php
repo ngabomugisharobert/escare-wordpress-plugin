@@ -37,6 +37,10 @@ class ESC_Portal_Apply {
 			ESC_Portal_Helpers::redirect_notice( $apply, 'nonce', 'error' );
 		}
 
+		if ( ! ESC_Portal_Rate_Limit::allow( 'apply', (string) ESC_Portal_Auth::current_user_id() ) ) {
+			ESC_Portal_Helpers::redirect_notice( $apply, 'rate-limited', 'error' );
+		}
+
 		if ( ! $job_id || 'esc_job' !== get_post_type( $job_id ) ) {
 			ESC_Portal_Helpers::redirect_notice( ESC_Portal_Helpers::get_page_url( 'careers' ), 'invalid-job', 'error' );
 		}
@@ -100,13 +104,21 @@ class ESC_Portal_Apply {
 
 		if ( is_wp_error( $stored ) ) {
 			wp_delete_post( $application_id, true );
-			ESC_Portal_Helpers::redirect_notice( $apply, 'upload-failed', 'error' );
+			$code = 'esc_upload_storage' === $stored->get_error_code() ? 'storage-unavailable' : 'upload-failed';
+			ESC_Portal_Helpers::redirect_notice( $apply, $code, 'error' );
 		}
 
-		update_post_meta( $application_id, '_esc_job_id', $job_id );
-		update_post_meta( $application_id, '_esc_user_id', $user->id );
-		update_post_meta( $application_id, '_esc_status', 'pending' );
-		update_post_meta( $application_id, '_esc_resume_file', $stored );
+		$meta_ok = update_post_meta( $application_id, '_esc_job_id', $job_id )
+			&& update_post_meta( $application_id, '_esc_user_id', $user->id )
+			&& update_post_meta( $application_id, '_esc_status', 'pending' )
+			&& update_post_meta( $application_id, '_esc_resume_file', $stored );
+
+		if ( ! $meta_ok ) {
+			ESC_Portal_Uploads::delete_file( $stored );
+			wp_delete_post( $application_id, true );
+			ESC_Portal_Helpers::redirect_notice( $apply, 'save-failed', 'error' );
+		}
+
 		update_post_meta( $application_id, '_esc_resume_name', isset( $_FILES['esc_resume']['name'] ) ? sanitize_file_name( wp_unslash( $_FILES['esc_resume']['name'] ) ) : 'resume' );
 		update_post_meta( $application_id, '_esc_notes', '' );
 
@@ -160,16 +172,11 @@ class ESC_Portal_Apply {
 			$over_18 = '';
 		}
 
-		$ssn = isset( $_POST['esc_ssn'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_ssn'] ) ) : '';
-		$ssn = preg_replace( '/[^0-9\-]/', '', $ssn );
-
 		$data['state']                   = $state;
 		$data['home_address']            = isset( $_POST['esc_home_address'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_home_address'] ) ) : '';
 		$data['years_at_address']        = isset( $_POST['esc_years_at_address'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_years_at_address'] ) ) : '';
 		$data['daytime_phone']           = isset( $_POST['esc_daytime_phone'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_daytime_phone'] ) ) : '';
 		$data['evening_phone']           = isset( $_POST['esc_evening_phone'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_evening_phone'] ) ) : '';
-		$data['ssn']                     = $ssn;
-		$data['drivers_license']         = isset( $_POST['esc_drivers_license'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_drivers_license'] ) ) : '';
 		$data['professional_license']    = isset( $_POST['esc_professional_license'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_professional_license'] ) ) : '';
 		$data['date_of_birth']           = isset( $_POST['esc_date_of_birth'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_date_of_birth'] ) ) : '';
 		$data['salary_desired']          = isset( $_POST['esc_salary_desired'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_salary_desired'] ) ) : '';
@@ -197,7 +204,6 @@ class ESC_Portal_Apply {
 			'years_at_address',
 			'daytime_phone',
 			'evening_phone',
-			'drivers_license',
 			'professional_license',
 			'date_of_birth',
 			'salary_desired',

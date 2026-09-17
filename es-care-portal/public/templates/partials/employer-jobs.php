@@ -32,16 +32,16 @@ defined( 'ABSPATH' ) || exit;
 				<table class="esc-table">
 					<thead>
 						<tr>
-							<th><?php esc_html_e( 'Title', 'es-care-portal' ); ?></th>
-							<th><?php esc_html_e( 'Status', 'es-care-portal' ); ?></th>
-							<th><?php esc_html_e( 'Actions', 'es-care-portal' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Title', 'es-care-portal' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Status', 'es-care-portal' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Actions', 'es-care-portal' ); ?></th>
 						</tr>
 					</thead>
 					<tbody>
 						<?php foreach ( $jobs as $job ) : ?>
 							<tr>
 								<td><a href="<?php echo esc_url( get_permalink( $job ) ); ?>"><?php echo esc_html( get_the_title( $job ) ); ?></a></td>
-								<td><?php echo ESC_Portal_Helpers::is_job_open( $job->ID ) ? esc_html__( 'Open', 'es-care-portal' ) : esc_html__( 'Closed', 'es-care-portal' ); ?></td>
+								<td><?php echo esc_html( ESC_Portal_Helpers::format_status( ESC_Portal_Helpers::listing_status( $job ) ) ); ?></td>
 								<td>
 									<a href="<?php echo esc_url( ESC_Portal_Helpers::dashboard_url( 'post', array( 'job' => $job->ID ) ) ); ?>"><?php esc_html_e( 'Edit', 'es-care-portal' ); ?></a>
 									<form class="esc-inline-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-esc-confirm="<?php echo esc_attr__( 'Remove this job listing?', 'es-care-portal' ); ?>">
@@ -68,10 +68,10 @@ defined( 'ABSPATH' ) || exit;
 				<table class="esc-table">
 					<thead>
 						<tr>
-							<th><?php esc_html_e( 'Applicant', 'es-care-portal' ); ?></th>
-							<th><?php esc_html_e( 'Job', 'es-care-portal' ); ?></th>
-							<th><?php esc_html_e( 'Status', 'es-care-portal' ); ?></th>
-							<th><?php esc_html_e( 'Review', 'es-care-portal' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Applicant', 'es-care-portal' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Job', 'es-care-portal' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Status', 'es-care-portal' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Review', 'es-care-portal' ); ?></th>
 						</tr>
 					</thead>
 					<tbody>

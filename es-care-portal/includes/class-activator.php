@@ -13,9 +13,9 @@ class ESC_Portal_Activator {
 	 * Run on plugin activation.
 	 */
 	public static function activate() {
-		ESC_Portal_Users::install();
-		ESC_Portal_Assessments::install();
-		ESC_Portal_Forms::install();
+		$fresh = false === get_option( ESC_Portal_Helpers::OPTION_KEY, false );
+
+		ESC_Portal_Schema::install_tables();
 		ESC_Portal_Roles::add_roles();
 		ESC_Portal_CPT_Job::register();
 		ESC_Portal_CPT_Job::register_taxonomy();
@@ -23,9 +23,16 @@ class ESC_Portal_Activator {
 		self::create_pages();
 		self::seed_job_categories();
 		self::ensure_settings();
-		self::apply_pointlab_theme();
+
+		if ( $fresh ) {
+			self::apply_pointlab_theme();
+		}
+
 		ESC_Portal_Uploads::ensure_directory();
+		ESC_Portal_Mail_Queue::schedule();
+		ESC_Portal_Privacy::schedule();
 		flush_rewrite_rules();
+		ESC_Portal_Schema::maybe_upgrade();
 		update_option( ESC_Portal_Helpers::VERSION_KEY, ESC_PORTAL_VERSION, false );
 	}
 
@@ -33,24 +40,24 @@ class ESC_Portal_Activator {
 	 * Create tables on existing installs without requiring a re-activate.
 	 */
 	public static function maybe_upgrade() {
+		ESC_Portal_Schema::maybe_upgrade();
+
 		$installed = get_option( ESC_Portal_Helpers::VERSION_KEY, '' );
 
 		if ( $installed === ESC_PORTAL_VERSION ) {
 			return;
 		}
 
-		ESC_Portal_Users::install();
-		ESC_Portal_Assessments::install();
-		ESC_Portal_Forms::install();
-		ESC_Portal_Roles::add_roles();
 		self::create_pages();
 		ESC_Portal_Uploads::ensure_directory();
-		self::apply_pointlab_theme();
+		ESC_Portal_Mail_Queue::schedule();
+		ESC_Portal_Privacy::schedule();
 		update_option( ESC_Portal_Helpers::VERSION_KEY, ESC_PORTAL_VERSION, false );
 	}
 
 	/**
 	 * Align saved theme colors with the PointLab site palette.
+	 * Used only on first install so administrator choices are preserved.
 	 */
 	public static function apply_pointlab_theme() {
 		$settings = ESC_Portal_Helpers::get_settings();
@@ -127,6 +134,11 @@ class ESC_Portal_Activator {
 				'title'    => __( 'Reset Password', 'es-care-portal' ),
 				'slug'     => 'reset-password',
 				'shortcode'=> '[esc_reset_password]',
+			),
+			'contact'         => array(
+				'title'     => __( 'Contact Us', 'es-care-portal' ),
+				'slug'      => 'contact-us',
+				'shortcode' => '[esc_contact]',
 			),
 		);
 

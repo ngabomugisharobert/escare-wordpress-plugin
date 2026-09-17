@@ -31,7 +31,7 @@ defined( 'ABSPATH' ) || exit;
 
 	<section class="esc-card" id="esc-delete-account">
 		<h3><?php esc_html_e( 'Delete Account', 'es-care-portal' ); ?></h3>
-		<p><?php esc_html_e( 'This permanently removes your portal login. Applications already submitted stay on file for hiring records.', 'es-care-portal' ); ?></p>
+		<p><?php esc_html_e( 'This permanently removes your portal login. Submitted applications are anonymized and resume files are deleted.', 'es-care-portal' ); ?></p>
 		<form class="esc-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-esc-confirm="<?php echo esc_attr__( 'Delete your account permanently?', 'es-care-portal' ); ?>">
 			<?php wp_nonce_field( 'esc_delete_account', 'esc_delete_nonce' ); ?>
 			<input type="hidden" name="action" value="esc_delete_account">

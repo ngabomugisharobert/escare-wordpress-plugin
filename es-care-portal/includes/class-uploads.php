@@ -25,11 +25,24 @@ class ESC_Portal_Uploads {
 	}
 
 	/**
-	 * Absolute directory for resumes.
+	 * Preferred private directory, outside the web root when possible.
 	 *
 	 * @return string
 	 */
 	public static function directory() {
+		if ( defined( 'ESC_PORTAL_PRIVATE_DIR' ) && ESC_PORTAL_PRIVATE_DIR ) {
+			return trailingslashit( ESC_PORTAL_PRIVATE_DIR ) . self::DIRNAME;
+		}
+
+		return trailingslashit( dirname( ABSPATH ) ) . 'esc-portal-private/' . self::DIRNAME;
+	}
+
+	/**
+	 * Legacy public-uploads path used before private storage.
+	 *
+	 * @return string
+	 */
+	public static function legacy_directory() {
 		$uploads = wp_upload_dir();
 		$base    = ! empty( $uploads['basedir'] ) ? $uploads['basedir'] : WP_CONTENT_DIR . '/uploads';
 
@@ -37,17 +50,54 @@ class ESC_Portal_Uploads {
 	}
 
 	/**
-	 * Create the private directory and guard files.
+	 * Whether new sensitive uploads are allowed.
+	 *
+	 * @return bool
 	 */
-	public static function ensure_directory() {
+	public static function is_ready() {
 		$dir = self::directory();
 
 		if ( ! is_dir( $dir ) ) {
 			wp_mkdir_p( $dir );
 		}
 
-		$htaccess = $dir . '/.htaccess';
-		$index    = $dir . '/index.php';
+		return is_dir( $dir ) && is_writable( $dir );
+	}
+
+	/**
+	 * Create the private directory and guard files.
+	 *
+	 * @return bool
+	 */
+	public static function ensure_directory() {
+		$dir = self::directory();
+
+		if ( ! is_dir( $dir ) && ! wp_mkdir_p( $dir ) ) {
+			ESC_Portal_Health::log( 'error', 'storage', 'Private resume directory could not be created.' );
+			return false;
+		}
+
+		if ( ! is_writable( $dir ) ) {
+			ESC_Portal_Health::log( 'error', 'storage', 'Private resume directory is not writable.' );
+			return false;
+		}
+
+		self::write_deny_files( $dir );
+
+		$legacy = self::legacy_directory();
+		if ( is_dir( $legacy ) ) {
+			self::write_deny_files( $legacy );
+		}
+
+		return true;
+	}
+
+	/**
+	 * @param string $dir Directory.
+	 */
+	public static function write_deny_files( $dir ) {
+		$htaccess  = $dir . '/.htaccess';
+		$index     = $dir . '/index.php';
 		$webconfig = $dir . '/web.config';
 
 		if ( ! file_exists( $htaccess ) ) {
@@ -109,7 +159,9 @@ class ESC_Portal_Uploads {
 	 * @return string|WP_Error Relative filename or error.
 	 */
 	public static function handle_upload( $file, $user_id, $application_id ) {
-		self::ensure_directory();
+		if ( ! self::ensure_directory() ) {
+			return new WP_Error( 'esc_upload_storage', __( 'Private file storage is unavailable.', 'es-care-portal' ) );
+		}
 
 		if ( empty( $file['tmp_name'] ) || ! is_uploaded_file( $file['tmp_name'] ) ) {
 			return new WP_Error( 'esc_upload_missing', __( 'Please attach a resume or CV.', 'es-care-portal' ) );
@@ -180,7 +232,113 @@ class ESC_Portal_Uploads {
 			return '';
 		}
 
-		return trailingslashit( self::directory() ) . $stored;
+		$private = trailingslashit( self::directory() ) . $stored;
+		if ( is_readable( $private ) ) {
+			return $private;
+		}
+
+		$legacy = trailingslashit( self::legacy_directory() ) . $stored;
+		if ( is_readable( $legacy ) ) {
+			return $legacy;
+		}
+
+		return $private;
+	}
+
+	/**
+	 * Delete a stored resume file.
+	 *
+	 * @param string $stored Relative name.
+	 * @return bool
+	 */
+	public static function delete_file( $stored ) {
+		$path = self::absolute_path( $stored );
+
+		if ( $path && is_file( $path ) ) {
+			return (bool) wp_delete_file( $path );
+		}
+
+		return false;
+	}
+
+	/**
+	 * Move legacy files from public uploads into private storage.
+	 *
+	 * @return int
+	 */
+	public static function migrate_existing_files() {
+		if ( ! self::ensure_directory() ) {
+			return 0;
+		}
+
+		$legacy = self::legacy_directory();
+		$dest   = self::directory();
+		$moved  = 0;
+
+		if ( ! is_dir( $legacy ) || realpath( $legacy ) === realpath( $dest ) ) {
+			return 0;
+		}
+
+		$files = glob( trailingslashit( $legacy ) . '*.*' );
+		if ( ! $files ) {
+			return 0;
+		}
+
+		foreach ( $files as $file ) {
+			$name = basename( $file );
+			if ( in_array( $name, array( '.htaccess', 'index.php', 'web.config' ), true ) ) {
+				continue;
+			}
+
+			$target = trailingslashit( $dest ) . $name;
+			if ( @rename( $file, $target ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				@chmod( $target, 0640 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				$moved++;
+			}
+		}
+
+		if ( $moved ) {
+			ESC_Portal_Health::log( 'info', 'storage', 'Migrated ' . $moved . ' resume files to private storage.' );
+		}
+
+		return $moved;
+	}
+
+	/**
+	 * Storage health for the admin dashboard.
+	 *
+	 * @return array
+	 */
+	public static function health() {
+		$dir      = self::directory();
+		$writable = self::ensure_directory();
+		$denied   = true;
+		$probe    = trailingslashit( self::legacy_directory() ) . 'index.php';
+
+		if ( file_exists( $probe ) ) {
+			$uploads = wp_upload_dir();
+			if ( ! empty( $uploads['baseurl'] ) ) {
+				$url      = trailingslashit( $uploads['baseurl'] ) . self::DIRNAME . '/index.php';
+				$response = wp_remote_get(
+					$url,
+					array(
+						'timeout'     => 5,
+						'redirection' => 0,
+					)
+				);
+				$code = (int) wp_remote_retrieve_response_code( $response );
+				if ( $code && $code < 400 ) {
+					$denied = false;
+				}
+			}
+		}
+
+		return array(
+			'path'             => $dir,
+			'writable'         => $writable,
+			'outside_uploads'  => false === strpos( wp_normalize_path( $dir ), wp_normalize_path( WP_CONTENT_DIR . '/uploads' ) ),
+			'http_denied'      => $denied,
+		);
 	}
 
 	/**

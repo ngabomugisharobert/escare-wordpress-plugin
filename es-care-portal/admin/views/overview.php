@@ -66,10 +66,10 @@ if ( empty( $table_name ) ) {
 		<table class="widefat striped">
 			<thead>
 				<tr>
-					<th><?php esc_html_e( 'Applicant', 'es-care-portal' ); ?></th>
-					<th><?php esc_html_e( 'Job', 'es-care-portal' ); ?></th>
-					<th><?php esc_html_e( 'Status', 'es-care-portal' ); ?></th>
-					<th><?php esc_html_e( 'Submitted', 'es-care-portal' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Applicant', 'es-care-portal' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Job', 'es-care-portal' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Status', 'es-care-portal' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Submitted', 'es-care-portal' ); ?></th>
 				</tr>
 			</thead>
 			<tbody>

@@ -21,6 +21,7 @@ defined( 'ABSPATH' ) || exit;
 		<?php else : ?>
 			<form class="esc-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<?php wp_nonce_field( 'esc_reset_password', 'esc_reset_password_nonce' ); ?>
+				<?php echo ESC_Portal_CSRF::field(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 				<input type="hidden" name="action" value="esc_reset_password">
 				<input type="hidden" name="esc_key" value="<?php echo esc_attr( $key ); ?>">
 				<input type="hidden" name="esc_login" value="<?php echo esc_attr( $login ); ?>">

@@ -34,8 +34,8 @@ defined( 'ABSPATH' ) || exit;
 				<table class="esc-table">
 					<thead>
 						<tr>
-							<th><?php esc_html_e( 'Subject', 'es-care-portal' ); ?></th>
-							<th><?php esc_html_e( 'Sent', 'es-care-portal' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Subject', 'es-care-portal' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Sent', 'es-care-portal' ); ?></th>
 						</tr>
 					</thead>
 					<tbody>

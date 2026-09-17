@@ -1,6 +1,6 @@
 <?php
 /**
- * Job-seeker dashboard sidebar.
+ * Job-seeker dashboard secondary menu.
  *
  * @package ESC_Portal
  *
@@ -23,22 +23,14 @@ if ( 'take' === $active ) {
 	$active = 'assessments';
 }
 ?>
-<aside class="esc-side" aria-label="<?php esc_attr_e( 'Job seeker menu', 'es-care-portal' ); ?>">
-	<p class="esc-side-kicker"><?php esc_html_e( 'For Job Seekers / Candidate', 'es-care-portal' ); ?></p>
-	<nav class="esc-side-nav">
+<header class="esc-side esc-subnav" aria-label="<?php esc_attr_e( 'Job seeker menu', 'es-care-portal' ); ?>">
+	<p class="esc-side-kicker esc-subnav-kicker"><?php esc_html_e( 'For Job Seekers / Candidate', 'es-care-portal' ); ?></p>
+	<nav class="esc-side-nav esc-subnav-links">
 		<?php foreach ( $items as $key => $label ) : ?>
 			<a href="<?php echo esc_url( ESC_Portal_Helpers::dashboard_url( $key ) ); ?>"<?php echo $active === $key ? ' aria-current="page"' : ''; ?>><?php echo esc_html( $label ); ?></a>
 		<?php endforeach; ?>
 		<a href="<?php echo esc_url( ESC_Portal_Helpers::get_page_url( 'profile' ) ); ?>"><?php esc_html_e( 'My Profile', 'es-care-portal' ); ?></a>
-		<a href="<?php echo esc_url( ESC_Portal_Auth::logout_url() ); ?>"><?php esc_html_e( 'Logout', 'es-care-portal' ); ?></a>
+		<a href="<?php echo esc_url( ESC_Portal_Helpers::dashboard_url( 'request' ) ); ?>"<?php echo 'request' === $view ? ' aria-current="page"' : ''; ?>><?php esc_html_e( 'Service Request', 'es-care-portal' ); ?></a>
+		<a class="esc-subnav-logout" href="<?php echo esc_url( ESC_Portal_Auth::logout_url() ); ?>"><?php esc_html_e( 'Logout', 'es-care-portal' ); ?></a>
 	</nav>
-	<a class="esc-side-cta" href="<?php echo esc_url( ESC_Portal_Helpers::dashboard_url( 'request' ) ); ?>"<?php echo 'request' === $view ? ' aria-current="page"' : ''; ?>>
-		<span class="esc-side-cta-icon" aria-hidden="true">
-			<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 5h11a2 2 0 0 1 2 2v12H7a2 2 0 0 1-2-2V5z"/><path d="M7 5V3.8A1.8 1.8 0 0 1 8.8 2H19a2 2 0 0 1 2 2v13"/><path d="M8 10h8M8 14h5"/></svg>
-		</span>
-		<span>
-			<strong><?php esc_html_e( 'Service Request', 'es-care-portal' ); ?></strong>
-			<em><?php esc_html_e( 'Request any of our Services >>', 'es-care-portal' ); ?></em>
-		</span>
-	</a>
-</aside>
+</header>

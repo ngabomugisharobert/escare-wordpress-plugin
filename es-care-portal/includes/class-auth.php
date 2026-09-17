@@ -39,10 +39,16 @@ class ESC_Portal_Auth {
 		self::bind( 'esc_portal_user', array( __CLASS__, 'handle_user_update' ) );
 		self::bind( 'esc_admin_delete_user', array( __CLASS__, 'handle_admin_delete_user' ) );
 		self::bind( 'esc_admin_delete_application', array( __CLASS__, 'handle_admin_delete_application' ) );
+		self::bind( 'esc_verify_email', array( __CLASS__, 'handle_verify_email' ) );
+		self::bind( 'esc_resend_verification', array( __CLASS__, 'handle_resend_verification' ) );
+		self::bind( 'esc_approve_employer', array( __CLASS__, 'handle_approve_employer' ) );
+		self::bind( 'esc_reject_employer', array( __CLASS__, 'handle_reject_employer' ) );
+		self::bind( 'esc_moderate_job', array( __CLASS__, 'handle_moderate_job' ) );
 		self::bind( 'esc_change_password', array( 'ESC_Portal_Account', 'handle_change_password' ) );
 		self::bind( 'esc_delete_account', array( 'ESC_Portal_Account', 'handle_delete_account' ) );
 		self::bind( 'esc_submit_assessment', array( 'ESC_Portal_Assessments', 'handle_submit' ) );
 		self::bind( 'esc_service_request', array( 'ESC_Portal_Forms', 'handle_request' ) );
+		self::bind( 'esc_contact', array( 'ESC_Portal_Forms', 'handle_contact' ) );
 		self::bind( 'esc_download_form', array( 'ESC_Portal_Forms', 'handle_download' ) );
 		add_action( 'admin_post_esc_form_upload', array( 'ESC_Portal_Forms', 'handle_admin_upload' ) );
 		add_action( 'admin_post_esc_form_delete', array( 'ESC_Portal_Forms', 'handle_admin_delete' ) );
@@ -124,6 +130,7 @@ class ESC_Portal_Auth {
 		ESC_Portal_Users::update( $user_id, array( 'last_login' => current_time( 'mysql' ) ) );
 
 		self::set_cookie( $user_id . '|' . $token, $ttl );
+		ESC_Portal_CSRF::rotate();
 		self::$current = ESC_Portal_Users::get( $user_id );
 	}
 
@@ -170,8 +177,12 @@ class ESC_Portal_Auth {
 	public static function handle_register() {
 		$fallback = ESC_Portal_Helpers::get_page_url( 'register' );
 
-		if ( ! isset( $_POST['esc_register_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['esc_register_nonce'] ) ), 'esc_register' ) ) {
+		if ( ! isset( $_POST['esc_register_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['esc_register_nonce'] ) ), 'esc_register' ) || ! ESC_Portal_CSRF::verify() ) {
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'nonce', 'error' );
+		}
+
+		if ( ! ESC_Portal_Rate_Limit::allow( 'register' ) ) {
+			ESC_Portal_Rate_Limit::reject();
 		}
 
 		if ( self::is_logged_in() ) {
@@ -213,6 +224,10 @@ class ESC_Portal_Auth {
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'weak-password', 'error' );
 		}
 
+		$status = ESC_Portal_Users::ROLE_EMPLOYER === $role
+			? ESC_Portal_Users::STATUS_PENDING_EMAIL
+			: ESC_Portal_Users::STATUS_ACTIVE;
+
 		$user_id = ESC_Portal_Users::create(
 			array(
 				'email'        => $email,
@@ -222,12 +237,18 @@ class ESC_Portal_Auth {
 				'phone'        => $phone,
 				'role'         => $role,
 				'company_name' => $company,
+				'status'       => $status,
 			)
 		);
 
 		if ( is_wp_error( $user_id ) ) {
 			$code = 'esc_exists' === $user_id->get_error_code() ? 'email-exists' : 'required';
 			ESC_Portal_Helpers::redirect_notice( $fallback, $code, 'error' );
+		}
+
+		if ( ESC_Portal_Users::ROLE_EMPLOYER === $role ) {
+			self::issue_verification( $user_id );
+			ESC_Portal_Helpers::redirect_notice( ESC_Portal_Helpers::get_page_url( 'login' ), 'verify-email', 'info' );
 		}
 
 		ESC_Portal_Emails::welcome( $user_id );
@@ -243,7 +264,7 @@ class ESC_Portal_Auth {
 	public static function handle_login() {
 		$fallback = ESC_Portal_Helpers::get_page_url( 'login' );
 
-		if ( ! isset( $_POST['esc_login_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['esc_login_nonce'] ) ), 'esc_login' ) ) {
+		if ( ! isset( $_POST['esc_login_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['esc_login_nonce'] ) ), 'esc_login' ) || ! ESC_Portal_CSRF::verify() ) {
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'nonce', 'error' );
 		}
 
@@ -260,7 +281,12 @@ class ESC_Portal_Auth {
 
 		if ( is_wp_error( $user ) ) {
 			self::record_failure( $email );
-			$code = 'esc_disabled' === $user->get_error_code() ? 'account-disabled' : 'invalid-login';
+			$map = array(
+				'esc_disabled'      => 'account-disabled',
+				'esc_pending_email' => 'pending-email',
+				'esc_pending_admin' => 'pending-admin',
+			);
+			$code = isset( $map[ $user->get_error_code() ] ) ? $map[ $user->get_error_code() ] : 'invalid-login';
 			ESC_Portal_Helpers::redirect_notice( $fallback, $code, 'error' );
 		}
 
@@ -292,19 +318,16 @@ class ESC_Portal_Auth {
 	public static function handle_lost_password() {
 		$fallback = ESC_Portal_Helpers::get_page_url( 'lost-password' );
 
-		if ( ! isset( $_POST['esc_lost_password_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['esc_lost_password_nonce'] ) ), 'esc_lost_password' ) ) {
+		if ( ! isset( $_POST['esc_lost_password_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['esc_lost_password_nonce'] ) ), 'esc_lost_password' ) || ! ESC_Portal_CSRF::verify() ) {
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'nonce', 'error' );
 		}
 
 		$email = isset( $_POST['esc_email'] ) ? sanitize_email( wp_unslash( $_POST['esc_email'] ) ) : '';
-		$ip    = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
-		$rate_key = 'esc_reset_rate_' . hash_hmac( 'sha256', strtolower( $email ) . '|' . $ip, wp_salt( 'nonce' ) );
 
-		if ( get_transient( $rate_key ) ) {
+		if ( ! ESC_Portal_Rate_Limit::allow( 'lost_password', $email ) ) {
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'reset-sent', 'success' );
 		}
 
-		set_transient( $rate_key, 1, 5 * MINUTE_IN_SECONDS );
 		$user  = $email ? ESC_Portal_Users::get_by_email( $email ) : null;
 
 		if ( $user ) {
@@ -328,7 +351,7 @@ class ESC_Portal_Auth {
 	public static function handle_reset_password() {
 		$fallback = ESC_Portal_Helpers::get_page_url( 'reset-password' );
 
-		if ( ! isset( $_POST['esc_reset_password_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['esc_reset_password_nonce'] ) ), 'esc_reset_password' ) ) {
+		if ( ! isset( $_POST['esc_reset_password_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['esc_reset_password_nonce'] ) ), 'esc_reset_password' ) || ! ESC_Portal_CSRF::verify() ) {
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'nonce', 'error' );
 		}
 
@@ -445,7 +468,7 @@ class ESC_Portal_Auth {
 			$data['role'] = $role;
 		}
 
-		if ( in_array( $status, array( ESC_Portal_Users::STATUS_ACTIVE, ESC_Portal_Users::STATUS_DISABLED ), true ) ) {
+		if ( ESC_Portal_Users::is_valid_status( $status ) ) {
 			$data['status'] = $status;
 		}
 
@@ -554,6 +577,179 @@ class ESC_Portal_Auth {
 	}
 
 	/**
+	 * Issue a single-use email verification token.
+	 *
+	 * @param int $user_id User ID.
+	 */
+	public static function issue_verification( $user_id ) {
+		try {
+			$token = bin2hex( random_bytes( 32 ) );
+		} catch ( Exception $exception ) {
+			$token = wp_generate_password( 64, false, false );
+		}
+
+		ESC_Portal_Users::update_meta( $user_id, 'email_verify_hash', hash_hmac( 'sha256', $token, wp_salt( 'auth' ) ) );
+		ESC_Portal_Users::update_meta( $user_id, 'email_verify_expires', (string) ( time() + DAY_IN_SECONDS ) );
+
+		$user = ESC_Portal_Users::get( $user_id );
+		if ( $user ) {
+			ESC_Portal_Emails::verify_email( $user, $token );
+		}
+	}
+
+	/**
+	 * Complete email verification.
+	 */
+	public static function handle_verify_email() {
+		$uid   = isset( $_GET['uid'] ) ? absint( $_GET['uid'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$token = isset( $_GET['token'] ) ? sanitize_text_field( wp_unslash( $_GET['token'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$login = ESC_Portal_Helpers::get_page_url( 'login' );
+		$user  = $uid ? ESC_Portal_Users::get( $uid ) : null;
+
+		if ( ! $user || ! $token ) {
+			ESC_Portal_Helpers::redirect_notice( $login, 'reset-invalid', 'error' );
+		}
+
+		$hash    = (string) ESC_Portal_Users::get_meta( $user->id, 'email_verify_hash', '' );
+		$expires = (int) ESC_Portal_Users::get_meta( $user->id, 'email_verify_expires', 0 );
+		$expected = hash_hmac( 'sha256', $token, wp_salt( 'auth' ) );
+
+		if ( ! $hash || time() > $expires || ! hash_equals( $hash, $expected ) ) {
+			ESC_Portal_Helpers::redirect_notice( $login, 'reset-invalid', 'error' );
+		}
+
+		ESC_Portal_Users::update_meta( $user->id, 'email_verify_hash', '' );
+		ESC_Portal_Users::update_meta( $user->id, 'email_verify_expires', '' );
+		ESC_Portal_Users::update_meta( $user->id, 'email_verified_at', current_time( 'mysql' ) );
+		ESC_Portal_Users::update( $user->id, array( 'status' => ESC_Portal_Users::STATUS_PENDING_ADMIN ) );
+		ESC_Portal_Emails::employer_pending_admin( ESC_Portal_Users::get( $user->id ) );
+
+		ESC_Portal_Helpers::redirect_notice( $login, 'email-verified', 'success' );
+	}
+
+	/**
+	 * Resend employer verification from the admin dashboard.
+	 */
+	public static function handle_resend_verification() {
+		$dest = ESC_Portal_Helpers::dashboard_url( 'users' );
+
+		if ( ! self::is_logged_in() || ! ESC_Portal_Users::is_admin() ) {
+			ESC_Portal_Helpers::redirect_notice( $dest, 'not-allowed', 'error' );
+		}
+
+		$user_id = isset( $_POST['esc_user_id'] ) ? absint( $_POST['esc_user_id'] ) : 0;
+		$nonce   = isset( $_POST['esc_resend_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_resend_nonce'] ) ) : '';
+		$user    = $user_id ? ESC_Portal_Users::get( $user_id ) : null;
+
+		if ( ! $user || ! wp_verify_nonce( $nonce, 'esc_resend_verification_' . $user_id ) ) {
+			ESC_Portal_Helpers::redirect_notice( $dest, 'nonce', 'error' );
+		}
+
+		if ( ! ESC_Portal_Rate_Limit::allow( 'verify_resend', $user->email ) ) {
+			ESC_Portal_Helpers::redirect_notice( $dest, 'rate-limited', 'error' );
+		}
+
+		self::issue_verification( $user->id );
+		ESC_Portal_Helpers::redirect_notice( $dest, 'verify-resent', 'success' );
+	}
+
+	/**
+	 * Approve a verified employer.
+	 */
+	public static function handle_approve_employer() {
+		$dest = ESC_Portal_Helpers::dashboard_url( 'users' );
+
+		if ( ! self::is_logged_in() || ! ESC_Portal_Users::is_admin() ) {
+			ESC_Portal_Helpers::redirect_notice( $dest, 'not-allowed', 'error' );
+		}
+
+		$user_id = isset( $_POST['esc_user_id'] ) ? absint( $_POST['esc_user_id'] ) : 0;
+		$nonce   = isset( $_POST['esc_approve_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_approve_nonce'] ) ) : '';
+		$user    = $user_id ? ESC_Portal_Users::get( $user_id ) : null;
+
+		if ( ! $user || ! wp_verify_nonce( $nonce, 'esc_approve_employer_' . $user_id ) ) {
+			ESC_Portal_Helpers::redirect_notice( $dest, 'nonce', 'error' );
+		}
+
+		ESC_Portal_Users::update( $user->id, array( 'status' => ESC_Portal_Users::STATUS_ACTIVE ) );
+		ESC_Portal_Users::update_meta( $user->id, 'approved_at', current_time( 'mysql' ) );
+		ESC_Portal_Emails::employer_decision( ESC_Portal_Users::get( $user->id ), 'approved' );
+
+		ESC_Portal_Helpers::redirect_notice( $dest, 'employer-approved', 'success' );
+	}
+
+	/**
+	 * Reject a pending employer.
+	 */
+	public static function handle_reject_employer() {
+		$dest = ESC_Portal_Helpers::dashboard_url( 'users' );
+
+		if ( ! self::is_logged_in() || ! ESC_Portal_Users::is_admin() ) {
+			ESC_Portal_Helpers::redirect_notice( $dest, 'not-allowed', 'error' );
+		}
+
+		$user_id = isset( $_POST['esc_user_id'] ) ? absint( $_POST['esc_user_id'] ) : 0;
+		$nonce   = isset( $_POST['esc_reject_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_reject_nonce'] ) ) : '';
+		$user    = $user_id ? ESC_Portal_Users::get( $user_id ) : null;
+
+		if ( ! $user || ! wp_verify_nonce( $nonce, 'esc_reject_employer_' . $user_id ) ) {
+			ESC_Portal_Helpers::redirect_notice( $dest, 'nonce', 'error' );
+		}
+
+		ESC_Portal_Users::update( $user->id, array( 'status' => ESC_Portal_Users::STATUS_DISABLED ) );
+		ESC_Portal_Emails::employer_decision( ESC_Portal_Users::get( $user->id ), 'rejected' );
+
+		ESC_Portal_Helpers::redirect_notice( $dest, 'employer-rejected', 'success' );
+	}
+
+	/**
+	 * Approve or reject a pending job listing.
+	 */
+	public static function handle_moderate_job() {
+		$dest = ESC_Portal_Helpers::dashboard_url( 'jobs' );
+
+		if ( ! self::is_logged_in() || ! ESC_Portal_Users::is_admin() ) {
+			ESC_Portal_Helpers::redirect_notice( $dest, 'not-allowed', 'error' );
+		}
+
+		$job_id = isset( $_POST['esc_job_id'] ) ? absint( $_POST['esc_job_id'] ) : 0;
+		$nonce  = isset( $_POST['esc_moderate_job_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_moderate_job_nonce'] ) ) : '';
+		$action = isset( $_POST['esc_moderate'] ) ? sanitize_key( wp_unslash( $_POST['esc_moderate'] ) ) : '';
+		$job    = $job_id ? get_post( $job_id ) : null;
+
+		if ( ! $job || 'esc_job' !== $job->post_type || ! wp_verify_nonce( $nonce, 'esc_moderate_job_' . $job_id ) ) {
+			ESC_Portal_Helpers::redirect_notice( $dest, 'nonce', 'error' );
+		}
+
+		$owner = ESC_Portal_Users::get( (int) get_post_meta( $job_id, '_esc_employer_id', true ) );
+
+		if ( 'approve' === $action ) {
+			wp_update_post(
+				array(
+					'ID'          => $job_id,
+					'post_status' => 'publish',
+				)
+			);
+			wp_cache_delete( 'esc_job_locations', 'esc_portal' );
+			if ( $owner ) {
+				ESC_Portal_Emails::job_moderated( $owner, $job_id, 'approved' );
+			}
+			ESC_Portal_Helpers::redirect_notice( $dest, 'job-approved', 'success' );
+		}
+
+		wp_update_post(
+			array(
+				'ID'          => $job_id,
+				'post_status' => 'draft',
+			)
+		);
+		if ( $owner ) {
+			ESC_Portal_Emails::job_moderated( $owner, $job_id, 'rejected' );
+		}
+		ESC_Portal_Helpers::redirect_notice( $dest, 'job-rejected', 'info' );
+	}
+
+	/**
 	 * @return object|null
 	 */
 	private static function user_from_cookie() {
@@ -580,7 +776,7 @@ class ESC_Portal_Auth {
 
 		$user = ESC_Portal_Users::get( $parts['user_id'] );
 
-		if ( ! $user || ESC_Portal_Users::STATUS_DISABLED === $user->status ) {
+		if ( ! $user || ESC_Portal_Users::STATUS_ACTIVE !== $user->status ) {
 			return null;
 		}
 

@@ -21,6 +21,7 @@ if ( is_page() ) {
 ?>
 <nav class="esc-nav" aria-label="<?php esc_attr_e( 'Careers portal', 'es-care-portal' ); ?>">
 	<a href="<?php echo esc_url( ESC_Portal_Helpers::get_page_url( 'careers' ) ); ?>"><?php esc_html_e( 'Careers', 'es-care-portal' ); ?></a>
+	<a href="<?php echo esc_url( ESC_Portal_Helpers::get_page_url( 'contact' ) ); ?>"<?php echo 'contact' === $current ? ' aria-current="page"' : ''; ?>><?php esc_html_e( 'Contact us', 'es-care-portal' ); ?></a>
 	<?php if ( $portal ) : ?>
 		<a href="<?php echo esc_url( ESC_Portal_Helpers::get_page_url( 'dashboard' ) ); ?>"<?php echo 'dashboard' === $current ? ' aria-current="page"' : ''; ?>><?php esc_html_e( 'Dashboard', 'es-care-portal' ); ?></a>
 		<a href="<?php echo esc_url( ESC_Portal_Helpers::get_page_url( 'profile' ) ); ?>"<?php echo 'profile' === $current ? ' aria-current="page"' : ''; ?>><?php esc_html_e( 'Profile', 'es-care-portal' ); ?></a>

@@ -61,6 +61,7 @@ class ESC_Portal_Elementor_Widget_Module extends ESC_Portal_Elementor_Widget_Bas
 					'job_form'       => __( 'Post / edit job form', 'es-care-portal' ),
 					'lost_password'  => __( 'Lost password', 'es-care-portal' ),
 					'reset_password' => __( 'Reset password', 'es-care-portal' ),
+					'contact'        => __( 'Contact us form', 'es-care-portal' ),
 					'logout'         => __( 'Logout link', 'es-care-portal' ),
 					'notice'         => __( 'Portal notices', 'es-care-portal' ),
 				),
@@ -103,6 +104,9 @@ class ESC_Portal_Elementor_Widget_Module extends ESC_Portal_Elementor_Widget_Bas
 					'jobs'        => __( 'Employer: Jobs', 'es-care-portal' ),
 					'post'        => __( 'Employer: Post job', 'es-care-portal' ),
 					'membership'  => __( 'Employer: Membership', 'es-care-portal' ),
+					'users'       => __( 'Admin: Users', 'es-care-portal' ),
+					'applications'=> __( 'Admin: Applications', 'es-care-portal' ),
+					'contact'     => __( 'Admin: Contact messages', 'es-care-portal' ),
 				),
 				'condition' => array(
 					'module' => 'dash_view',
@@ -176,6 +180,9 @@ class ESC_Portal_Elementor_Widget_Module extends ESC_Portal_Elementor_Widget_Bas
 				break;
 			case 'reset_password':
 				$html = ESC_Portal_Shortcodes::reset_password();
+				break;
+			case 'contact':
+				$html = ESC_Portal_Shortcodes::contact_form();
 				break;
 			case 'logout':
 				$html = ESC_Portal_Shortcodes::logout_link();

@@ -55,8 +55,7 @@ abstract class ESC_Portal_Elementor_Widget_Base extends \Elementor\Widget_Base {
 				'selectors' => array(
 					'{{WRAPPER}} .esc-elementor-widget' => '--esc-teal: {{VALUE}}; --esc-tile: {{VALUE}};',
 					'{{WRAPPER}} .esc-button'           => 'background: {{VALUE}};',
-					'{{WRAPPER}} .esc-dash-title'       => 'color: {{VALUE}};',
-					'{{WRAPPER}} .esc-tile'             => 'color: {{VALUE}}; border-color: {{VALUE}};',
+					'{{WRAPPER}} .esc-tile'             => 'border-color: {{VALUE}};',
 					'{{WRAPPER}} .esc-tile-icon'        => 'color: {{VALUE}};',
 				),
 			)
@@ -68,7 +67,9 @@ abstract class ESC_Portal_Elementor_Widget_Base extends \Elementor\Widget_Base {
 				'label'     => __( 'Sidebar menu color', 'es-care-portal' ),
 				'type'      => \Elementor\Controls_Manager::COLOR,
 				'selectors' => array(
-					'{{WRAPPER}} .esc-side-nav a' => 'background: {{VALUE}};',
+					'{{WRAPPER}} .esc-side-nav a[aria-current="page"]' => 'background: {{VALUE}};',
+					'{{WRAPPER}} .esc-subnav-links a[aria-current="page"]' => 'background: {{VALUE}};',
+					'{{WRAPPER}} .esc-subnav-cta' => 'background: {{VALUE}};',
 				),
 			)
 		);
@@ -80,6 +81,7 @@ abstract class ESC_Portal_Elementor_Widget_Base extends \Elementor\Widget_Base {
 				'type'      => \Elementor\Controls_Manager::COLOR,
 				'selectors' => array(
 					'{{WRAPPER}} .esc-side-kicker' => 'background: {{VALUE}};',
+					'{{WRAPPER}} .esc-subnav-kicker' => 'background: {{VALUE}};',
 				),
 			)
 		);

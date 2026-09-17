@@ -56,24 +56,6 @@ $account = array(
 ?>
 <section class="esc-dash-panel">
 	<h2 class="esc-dash-title"><?php esc_html_e( 'Dashboard', 'es-care-portal' ); ?></h2>
-	<p class="esc-dash-copy">
-		<?php
-		echo wp_kses(
-			sprintf(
-				/* translators: 1: application link, 2: assessment link, 3: forms link */
-				__( 'Welcome. At ES Care Services, we are committed to finding opportunities that work with your abilities, schedule and experience. Our application process is simple. %1$s then take the %2$s, and finally %3$s to be filled. On completion, leave the rest to us to find you the best opportunity that works for you. For any clarifications feel free to get in touch with us.', 'es-care-portal' ),
-				'<a href="' . esc_url( ESC_Portal_Helpers::dashboard_url( 'apply' ) ) . '">' . esc_html__( 'Submit your Application/Resume', 'es-care-portal' ) . '</a>',
-				'<a href="' . esc_url( ESC_Portal_Helpers::dashboard_url( 'assessments' ) ) . '">' . esc_html__( 'Pre-Hire Assessment Test', 'es-care-portal' ) . '</a>',
-				'<a href="' . esc_url( ESC_Portal_Helpers::dashboard_url( 'forms' ) ) . '">' . esc_html__( 'Download Employment Forms', 'es-care-portal' ) . '</a>'
-			),
-			array(
-				'a' => array(
-					'href' => array(),
-				),
-			)
-		);
-		?>
-	</p>
 
 	<?php if ( empty( $profile_complete ) ) : ?>
 		<div class="esc-notice esc-notice--info">

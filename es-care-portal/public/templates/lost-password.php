@@ -14,6 +14,7 @@ defined( 'ABSPATH' ) || exit;
 		<p><?php esc_html_e( 'Enter the email on your account. If it is registered, we will send a reset link.', 'es-care-portal' ); ?></p>
 		<form class="esc-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<?php wp_nonce_field( 'esc_lost_password', 'esc_lost_password_nonce' ); ?>
+			<?php echo ESC_Portal_CSRF::field(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 			<input type="hidden" name="action" value="esc_lost_password">
 			<p class="esc-field">
 				<label for="esc_email"><?php esc_html_e( 'Email', 'es-care-portal' ); ?></label>

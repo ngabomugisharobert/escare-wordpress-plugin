@@ -23,6 +23,7 @@ class ESC_Portal_Shortcodes {
 		add_shortcode( 'esc_lost_password', array( __CLASS__, 'lost_password' ) );
 		add_shortcode( 'esc_reset_password', array( __CLASS__, 'reset_password' ) );
 		add_shortcode( 'esc_logout', array( __CLASS__, 'logout_link' ) );
+		add_shortcode( 'esc_contact', array( __CLASS__, 'contact_form' ) );
 	}
 
 	/**
@@ -85,63 +86,19 @@ class ESC_Portal_Shortcodes {
 		$template = 'dashboard-seeker';
 
 		if ( ESC_Portal_Users::is_employer( $user ) ) {
-			$template             = 'dashboard-employer';
-			$view                 = ESC_Portal_Helpers::current_dashboard_view( 'employer' );
-			$args['view']         = $view;
-			$args['jobs']         = ESC_Portal_Employer::jobs_for( $user->id );
-			$args['applications'] = self::applications_for_jobs( wp_list_pluck( $args['jobs'], 'ID' ) );
-			$args['profile']      = ESC_Portal_Profile::get( $user->id );
-			$args['requests']     = ESC_Portal_Forms::requests_for_user( $user->id );
-			$args['edit_job']     = null;
-
-			if ( 'post' === $view ) {
-				$job_id = isset( $_GET['job'] ) ? absint( $_GET['job'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-
-				if ( $job_id && ESC_Portal_Helpers::can_manage_job( $job_id ) ) {
-					$args['edit_job'] = get_post( $job_id );
-				}
-			}
+			$template     = 'dashboard-employer';
+			$view         = ESC_Portal_Helpers::current_dashboard_view( 'employer' );
+			$args['view'] = $view;
+			$args         = array_merge( $args, self::employer_view_args( $user, $view ) );
 		} elseif ( ESC_Portal_Users::is_admin( $user ) ) {
-			$template             = 'dashboard-admin';
-			$view                 = ESC_Portal_Helpers::current_dashboard_view( 'admin' );
-			$args['view']         = $view;
-			$args['users']        = ESC_Portal_Users::query( array( 'number' => 500 ) );
-			$args['jobs']         = ESC_Portal_Employer::jobs_for( $user->id, true );
-			$args['applications'] = self::applications_for_jobs( array() );
-			$args['user_counts']  = ESC_Portal_Users::counts_by_role();
+			$template     = 'dashboard-admin';
+			$view         = ESC_Portal_Helpers::current_dashboard_view( 'admin' );
+			$args['view'] = $view;
+			$args         = array_merge( $args, self::admin_view_args( $user, $view ) );
 		} else {
-			$view = ESC_Portal_Helpers::current_dashboard_view();
-			$aid  = isset( $_GET['assessment'] ) ? absint( $_GET['assessment'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-
-			$args['profile_complete'] = ESC_Portal_Helpers::is_profile_complete( $user->id );
-			$args['applications']     = ESC_Portal_CPT_Application::for_user( $user->id );
-			$args['view']             = $view;
-			$args['assessments']      = ESC_Portal_Assessments::all_active();
-			$args['attempts']         = ESC_Portal_Assessments::attempts_for_user( $user->id );
-			$args['forms']            = ESC_Portal_Forms::all();
-			$args['requests']         = ESC_Portal_Forms::requests_for_user( $user->id );
-			$args['profile']          = ESC_Portal_Profile::get( $user->id );
-			$args['settings']         = ESC_Portal_Helpers::public_settings();
-			$args['jobs']             = get_posts(
-				array(
-					'post_type'      => 'esc_job',
-					'post_status'    => 'publish',
-					'posts_per_page' => 20,
-					'meta_key'       => '_esc_job_status',
-					'meta_value'     => 'open',
-				)
-			);
-			$args['assessment']       = null;
-			$args['questions']        = array();
-
-			if ( 'take' === $view ) {
-				$args['assessment'] = ESC_Portal_Assessments::get( $aid );
-				$args['questions']  = $args['assessment'] ? ESC_Portal_Assessments::questions( $aid ) : array();
-
-				if ( ! $args['assessment'] || ! $args['questions'] ) {
-					$args['view'] = 'assessments';
-				}
-			}
+			$view         = ESC_Portal_Helpers::current_dashboard_view();
+			$args['view'] = $view;
+			$args         = array_merge( $args, self::seeker_view_args( $user, $view ) );
 		}
 
 		$app_id = isset( $_GET['application'] ) ? absint( $_GET['application'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -368,6 +325,20 @@ class ESC_Portal_Shortcodes {
 	}
 
 	/**
+	 * Public Contact Us form. No login required.
+	 *
+	 * @return string
+	 */
+	public static function contact_form() {
+		return ESC_Portal_Helpers::render_query_notice() . ESC_Portal_Helpers::get_template(
+			'contact',
+			array(
+				'user' => ESC_Portal_Auth::current_user(),
+			)
+		);
+	}
+
+	/**
 	 * @return string
 	 */
 	public static function logout_link() {
@@ -379,39 +350,370 @@ class ESC_Portal_Shortcodes {
 	}
 
 	/**
+	 * Load only the employer view that is currently on screen.
+	 *
+	 * @param object $user Portal user.
+	 * @param string $view View key.
+	 * @return array
+	 */
+	private static function employer_view_args( $user, $view ) {
+		$args = array(
+			'jobs'         => array(),
+			'jobs_total'   => 0,
+			'applications' => array(),
+			'profile'      => array(),
+			'requests'     => array(),
+			'edit_job'     => null,
+			'settings'     => ESC_Portal_Helpers::public_settings(),
+			'table_req'    => ESC_Portal_Helpers::table_request( array( 'date', 'title', 'status' ) ),
+		);
+
+		if ( 'profile' === $view ) {
+			$args['profile'] = ESC_Portal_Profile::get( $user->id );
+		}
+
+		if ( 'request' === $view ) {
+			$args['requests'] = ESC_Portal_Forms::requests_for_user( $user->id );
+		}
+
+		if ( 'post' === $view ) {
+			$job_id = isset( $_GET['job'] ) ? absint( $_GET['job'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+			if ( $job_id && ESC_Portal_Helpers::can_manage_job( $job_id ) ) {
+				$args['edit_job'] = get_post( $job_id );
+			}
+		}
+
+		if ( 'jobs' === $view ) {
+			$req        = $args['table_req'];
+			$jobs_query = ESC_Portal_Employer::jobs_for(
+				$user->id,
+				false,
+				array(
+					'posts_per_page' => $req['number'],
+					'paged'          => $req['paged'],
+					's'              => $req['search'],
+				)
+			);
+			$args['jobs']       = $jobs_query->posts;
+			$args['jobs_total'] = (int) $jobs_query->found_posts;
+			$job_ids            = get_posts(
+				array(
+					'post_type'      => 'esc_job',
+					'post_status'    => array( 'publish', 'pending', 'draft' ),
+					'posts_per_page' => 200,
+					'fields'         => 'ids',
+					'meta_key'       => '_esc_employer_id',
+					'meta_value'     => (int) $user->id,
+				)
+			);
+			$args['applications'] = self::applications_for_jobs( $job_ids, $req );
+			$args['apps_total']   = self::applications_count( $job_ids );
+		}
+
+		return $args;
+	}
+
+	/**
+	 * Load only the admin view that is currently on screen.
+	 *
+	 * @param object $user Portal user.
+	 * @param string $view View key.
+	 * @return array
+	 */
+	private static function admin_view_args( $user, $view ) {
+		$req  = ESC_Portal_Helpers::table_request( array( 'created_at', 'email', 'role', 'last_name', 'status', 'date', 'title', 'subject', 'name' ) );
+		$args = array(
+			'table_req'       => $req,
+			'users'           => array(),
+			'users_total'     => 0,
+			'jobs'            => array(),
+			'jobs_total'      => 0,
+			'applications'    => array(),
+			'apps_total'      => 0,
+			'requests'        => array(),
+			'requests_total'  => 0,
+			'user_counts'     => ESC_Portal_Users::counts_by_role(),
+			'home_metrics'    => array(),
+			'employers'       => array(),
+		);
+
+		if ( 'home' === $view ) {
+			$args['home_metrics'] = self::admin_home_metrics();
+			return $args;
+		}
+
+		if ( 'users' === $view ) {
+			$args['users'] = ESC_Portal_Users::query(
+				array(
+					'number'  => $req['number'],
+					'offset'  => $req['offset'],
+					'search'  => $req['search'],
+					'role'    => $req['role'],
+					'status'  => $req['status'],
+					'orderby' => $req['orderby'],
+					'order'   => $req['order'],
+				)
+			);
+			$args['users_total'] = ESC_Portal_Users::query_count(
+				array(
+					'search' => $req['search'],
+					'role'   => $req['role'],
+					'status' => $req['status'],
+				)
+			);
+		}
+
+		if ( 'jobs' === $view ) {
+			$jobs_query = ESC_Portal_Employer::jobs_for(
+				$user->id,
+				true,
+				array(
+					'posts_per_page' => $req['number'],
+					'paged'          => $req['paged'],
+					's'              => $req['search'],
+					'meta_status'    => in_array( $req['status'], array( 'open', 'closed' ), true ) ? $req['status'] : '',
+					'post_status'    => 'pending' === $req['status'] ? array( 'pending' ) : ( 'rejected' === $req['status'] ? array( 'draft' ) : array( 'publish', 'pending', 'draft' ) ),
+				)
+			);
+			$args['jobs']       = $jobs_query->posts;
+			$args['jobs_total'] = (int) $jobs_query->found_posts;
+			$employer_ids       = array();
+
+			foreach ( $args['jobs'] as $job ) {
+				$employer_ids[] = absint( get_post_meta( $job->ID, '_esc_employer_id', true ) );
+			}
+
+			$args['employers'] = ESC_Portal_Users::get_many( $employer_ids );
+		}
+
+		if ( 'applications' === $view ) {
+			$args['applications'] = self::applications_for_jobs( array(), $req );
+			$args['apps_total']   = self::applications_count( array(), $req );
+		}
+
+		if ( 'contact' === $view ) {
+			$args['requests'] = ESC_Portal_Forms::query_requests(
+				array(
+					'number'  => $req['number'],
+					'offset'  => $req['offset'],
+					'search'  => $req['search'],
+					'orderby' => $req['orderby'],
+					'order'   => $req['order'],
+				)
+			);
+			$args['requests_total'] = ESC_Portal_Forms::query_requests_count(
+				array(
+					'search' => $req['search'],
+				)
+			);
+		}
+
+		return $args;
+	}
+
+	/**
+	 * Lightweight admin home metrics.
+	 *
+	 * @return array
+	 */
+	private static function admin_home_metrics() {
+		$open = new WP_Query(
+			array(
+				'post_type'      => 'esc_job',
+				'post_status'    => 'publish',
+				'posts_per_page' => 1,
+				'fields'         => 'ids',
+				'meta_key'       => '_esc_job_status',
+				'meta_value'     => 'open',
+			)
+		);
+		$pending_jobs = new WP_Query(
+			array(
+				'post_type'      => 'esc_job',
+				'post_status'    => 'pending',
+				'posts_per_page' => 1,
+				'fields'         => 'ids',
+			)
+		);
+
+		return array(
+			'open_jobs'     => (int) $open->found_posts,
+			'pending_jobs'  => (int) $pending_jobs->found_posts,
+			'pending_apps'  => self::applications_count( array(), array( 'status' => 'pending' ) ),
+			'contacts'      => ESC_Portal_Forms::query_requests_count(),
+		);
+	}
+
+	/**
+	 * Load only the seeker view that is currently on screen.
+	 *
+	 * @param object $user Portal user.
+	 * @param string $view View key.
+	 * @return array
+	 */
+	private static function seeker_view_args( $user, $view ) {
+		$args = array(
+			'profile_complete' => ESC_Portal_Helpers::is_profile_complete( $user->id ),
+			'applications'     => array(),
+			'assessments'      => array(),
+			'attempts'         => array(),
+			'forms'            => array(),
+			'requests'         => array(),
+			'profile'          => array(),
+			'settings'         => ESC_Portal_Helpers::public_settings(),
+			'jobs'             => array(),
+			'assessment'       => null,
+			'questions'        => array(),
+		);
+
+		if ( in_array( $view, array( 'home', 'apply' ), true ) ) {
+			$args['jobs'] = get_posts(
+				array(
+					'post_type'      => 'esc_job',
+					'post_status'    => 'publish',
+					'posts_per_page' => 20,
+					'meta_key'       => '_esc_job_status',
+					'meta_value'     => 'open',
+				)
+			);
+		}
+
+		if ( in_array( $view, array( 'home', 'apply', 'results' ), true ) ) {
+			$args['applications'] = ESC_Portal_CPT_Application::for_user( $user->id );
+		}
+
+		if ( in_array( $view, array( 'home', 'assessments', 'take' ), true ) ) {
+			$args['assessments'] = ESC_Portal_Assessments::all_active();
+		}
+
+		if ( in_array( $view, array( 'home', 'results' ), true ) ) {
+			$args['attempts'] = ESC_Portal_Assessments::attempts_for_user( $user->id );
+		}
+
+		if ( 'forms' === $view ) {
+			$args['forms'] = ESC_Portal_Forms::all();
+		}
+
+		if ( 'request' === $view ) {
+			$args['requests'] = ESC_Portal_Forms::requests_for_user( $user->id );
+		}
+
+		if ( in_array( $view, array( 'apply', 'home' ), true ) ) {
+			$args['profile'] = ESC_Portal_Profile::get( $user->id );
+		}
+
+		if ( 'take' === $view ) {
+			$aid                = isset( $_GET['assessment'] ) ? absint( $_GET['assessment'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$args['assessment'] = ESC_Portal_Assessments::get( $aid );
+			$args['questions']  = $args['assessment'] ? ESC_Portal_Assessments::questions( $aid ) : array();
+
+			if ( ! $args['assessment'] || ! $args['questions'] ) {
+				$args['view'] = 'assessments';
+			}
+		}
+
+		return $args;
+	}
+
+	/**
 	 * Applications for a set of jobs. Empty job list = all applications (admin).
 	 *
 	 * @param int[] $job_ids Job IDs.
+	 * @param array $req     Optional table request.
 	 * @return WP_Post[]
 	 */
-	private static function applications_for_jobs( $job_ids ) {
-		$args = array(
+	private static function applications_for_jobs( $job_ids, $req = array() ) {
+		$per_page = ! empty( $req['number'] ) ? min( 100, max( 1, absint( $req['number'] ) ) ) : 25;
+		$paged    = ! empty( $req['paged'] ) ? max( 1, absint( $req['paged'] ) ) : 1;
+		$args     = array(
 			'post_type'      => 'esc_application',
 			'post_status'    => 'publish',
-			'posts_per_page' => 100,
+			'posts_per_page' => $per_page,
+			'paged'          => $paged,
 			'orderby'        => 'date',
 			'order'          => 'DESC',
 		);
 
-		if ( ! empty( $job_ids ) ) {
-			$args['meta_query'] = array(
-				array(
-					'key'     => '_esc_job_id',
-					'value'   => array_map( 'intval', $job_ids ),
-					'compare' => 'IN',
-				),
-			);
-		} elseif ( array() === $job_ids ) {
-			// Admin: no filter. Employer with no jobs: return none.
+		if ( ! empty( $req['search'] ) ) {
+			$args['s'] = $req['search'];
 		}
 
-		if ( is_array( $job_ids ) && empty( $job_ids ) && ! ESC_Portal_Users::is_admin() ) {
+		$meta_query = array();
+
+		if ( ! empty( $req['status'] ) && isset( ESC_Portal_Helpers::application_statuses()[ $req['status'] ] ) ) {
+			$meta_query[] = array(
+				'key'   => '_esc_status',
+				'value' => $req['status'],
+			);
+		}
+
+		if ( ! empty( $job_ids ) ) {
+			$meta_query[] = array(
+				'key'     => '_esc_job_id',
+				'value'   => array_map( 'intval', $job_ids ),
+				'compare' => 'IN',
+			);
+		} elseif ( is_array( $job_ids ) && empty( $job_ids ) && ! ESC_Portal_Users::is_admin() ) {
 			return array();
+		}
+
+		if ( $meta_query ) {
+			if ( count( $meta_query ) > 1 ) {
+				$meta_query['relation'] = 'AND';
+			}
+			$args['meta_query'] = $meta_query;
 		}
 
 		$query = new WP_Query( $args );
 
 		return $query->posts;
+	}
+
+	/**
+	 * @param int[] $job_ids Job IDs.
+	 * @param array $req     Optional filters.
+	 * @return int
+	 */
+	private static function applications_count( $job_ids, $req = array() ) {
+		$args = array(
+			'post_type'      => 'esc_application',
+			'post_status'    => 'publish',
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+		);
+
+		$meta_query = array();
+
+		if ( ! empty( $req['search'] ) ) {
+			$args['s'] = $req['search'];
+		}
+
+		if ( ! empty( $req['status'] ) && isset( ESC_Portal_Helpers::application_statuses()[ $req['status'] ] ) ) {
+			$meta_query[] = array(
+				'key'   => '_esc_status',
+				'value' => $req['status'],
+			);
+		}
+
+		if ( ! empty( $job_ids ) ) {
+			$meta_query[] = array(
+				'key'     => '_esc_job_id',
+				'value'   => array_map( 'intval', $job_ids ),
+				'compare' => 'IN',
+			);
+		}
+
+		if ( $meta_query ) {
+			if ( count( $meta_query ) > 1 ) {
+				$meta_query['relation'] = 'AND';
+			}
+			$args['meta_query'] = $meta_query;
+		}
+
+		$query = new WP_Query( $args );
+
+		return (int) $query->found_posts;
 	}
 
 	/**

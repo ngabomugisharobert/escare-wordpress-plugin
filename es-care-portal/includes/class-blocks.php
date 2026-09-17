@@ -143,7 +143,7 @@ class ESC_Portal_Blocks {
 			$args = array(
 				'user'         => $user,
 				'view'         => $view,
-				'jobs'         => ESC_Portal_Employer::jobs_for( $user->id ),
+				'jobs'         => ESC_Portal_Employer::jobs_for( $user->id )->posts,
 				'applications' => array(),
 				'profile'      => ESC_Portal_Profile::get( $user->id ),
 				'requests'     => ESC_Portal_Forms::requests_for_user( $user->id ),
@@ -288,15 +288,23 @@ class ESC_Portal_Blocks {
 		$tile    = ! empty( $s['color_tile'] ) ? $s['color_tile'] : '#4caf50';
 		$cta     = ! empty( $s['color_cta'] ) ? $s['color_cta'] : '#2e7d32';
 
-		return '.esc-portal-wrap,.esc-dash-wrap{--esc-teal:' . esc_attr( $accent ) . ';--esc-teal-dark:' . esc_attr( $accent ) . ';--esc-side-nav:' . esc_attr( $side ) . ';--esc-side-header:' . esc_attr( $header ) . ';--esc-tile:' . esc_attr( $tile ) . ';--esc-cta:' . esc_attr( $cta ) . ';}'
-			. '.esc-side-kicker{background:var(--esc-side-header)!important;}'
-			. '.esc-side-nav a{background:var(--esc-side-nav)!important;}'
-			. '.esc-side-cta{background:var(--esc-cta)!important;}'
-			. '.esc-tile,.esc-tile-icon,.esc-dash-title{color:var(--esc-tile)!important;}'
+		return '.esc-portal-wrap,.esc-dash-wrap{--esc-teal:' . esc_attr( $accent ) . ';--esc-teal-dark:' . esc_attr( $cta ) . ';--esc-navy:' . esc_attr( $cta ) . ';--esc-side-nav:' . esc_attr( $side ) . ';--esc-side-header:' . esc_attr( $header ) . ';--esc-tile:' . esc_attr( $tile ) . ';--esc-cta:' . esc_attr( $cta ) . ';}'
+			. '.esc-side-kicker,.esc-subnav-kicker{background:var(--esc-side-header)!important;}'
+			. '.esc-side-nav a,.esc-subnav-links a{background:transparent!important;color:var(--esc-navy)!important;}'
+			. '.esc-side-nav a:hover,.esc-subnav-links a:hover{background:#eef7e6!important;}'
+			. '.esc-side-nav a[aria-current="page"],.esc-subnav-links a[aria-current="page"],.esc-side-nav a[aria-current="page"]:hover,.esc-subnav-links a[aria-current="page"]:hover{background:var(--esc-cta)!important;color:#fff!important;}'
+			. '.esc-subnav-logout,.esc-side-nav a.esc-subnav-logout{color:var(--esc-danger)!important;background:transparent!important;}'
+			. '.esc-subnav-logout:hover,.esc-side-nav a.esc-subnav-logout:hover{background:#fef2f2!important;}'
+			. '.esc-tile-icon{color:var(--esc-navy)!important;}'
+			. '.esc-dash-title{color:var(--esc-navy)!important;}'
+			. '.esc-tile,.esc-dash-copy,.esc-dash-panel,.esc-notice--info{color:var(--esc-ink,#212121)!important;}'
+			. '.esc-dash-copy a,.esc-notice--info a{color:var(--esc-navy)!important;}'
 			. '.esc-tile{border-color:color-mix(in srgb,var(--esc-tile) 35%,#fff)!important;}'
 			. '.esc-button:not(.esc-button--danger){background:var(--esc-teal)!important;}'
-			. '.esc-button--ghost{color:var(--esc-teal)!important;border-color:var(--esc-teal)!important;background:transparent!important;}'
+			. '.esc-button--ghost{color:var(--esc-navy)!important;border-color:var(--esc-navy)!important;background:transparent!important;}'
+			. '.esc-modal-close,.esc-modal-close:hover{background:transparent!important;color:#4b5563!important;width:2rem!important;height:2rem!important;min-width:0!important;padding:0!important;border:0!important;border-radius:50%!important;box-shadow:none!important;}'
+			. '.esc-modal-close:hover,.esc-modal-close:focus-visible{background:#f3f4f6!important;color:#111827!important;}'
 			. '.esc-app-section-head,.esc-app-title{background:var(--esc-teal);}'
-			. '.esc-app-title{background:transparent!important;color:var(--esc-teal)!important;border-bottom-color:var(--esc-teal)!important;}';
+			. '.esc-app-title{background:transparent!important;color:var(--esc-navy)!important;border-bottom-color:var(--esc-teal)!important;}';
 	}
 }

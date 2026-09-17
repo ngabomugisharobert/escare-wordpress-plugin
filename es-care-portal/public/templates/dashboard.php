@@ -39,10 +39,10 @@ defined( 'ABSPATH' ) || exit;
 				<table class="esc-table">
 					<thead>
 						<tr>
-							<th><?php esc_html_e( 'Position', 'es-care-portal' ); ?></th>
-							<th><?php esc_html_e( 'Submitted', 'es-care-portal' ); ?></th>
-							<th><?php esc_html_e( 'Status', 'es-care-portal' ); ?></th>
-							<th><?php esc_html_e( 'Actions', 'es-care-portal' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Position', 'es-care-portal' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Submitted', 'es-care-portal' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Status', 'es-care-portal' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Actions', 'es-care-portal' ); ?></th>
 						</tr>
 					</thead>
 					<tbody>

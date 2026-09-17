@@ -5,63 +5,72 @@
  * @package ESC_Portal
  *
  * @var WP_Post[] $jobs
+ * @var int       $jobs_total
+ * @var array     $table_req
+ * @var array     $employers
  */
 
 defined( 'ABSPATH' ) || exit;
 
-$jobs = is_array( $jobs ) ? $jobs : array();
+$jobs       = is_array( $jobs ) ? $jobs : array();
+$jobs_total = isset( $jobs_total ) ? (int) $jobs_total : count( $jobs );
+$req        = isset( $table_req ) && is_array( $table_req ) ? $table_req : ESC_Portal_Helpers::table_request( array( 'date', 'title', 'status' ) );
+$employers  = isset( $employers ) && is_array( $employers ) ? $employers : array();
+$base       = ESC_Portal_Helpers::dashboard_url( 'jobs' );
 ?>
 <div class="esc-dash-toolbar">
 	<h2 class="esc-dash-title esc-dash-title--rule"><?php esc_html_e( 'Jobs', 'es-care-portal' ); ?></h2>
 	<a class="esc-button" href="<?php echo esc_url( ESC_Portal_Helpers::get_page_url( 'post-job' ) ); ?>"><?php esc_html_e( 'Post a job', 'es-care-portal' ); ?></a>
 </div>
-<p class="esc-dash-copy"><?php esc_html_e( 'All job listings across employers. Search, filter by status, and sort columns.', 'es-care-portal' ); ?></p>
+<p class="esc-dash-copy"><?php esc_html_e( 'All job listings across employers. New employer listings wait here until they are approved.', 'es-care-portal' ); ?></p>
 
 <div class="esc-card esc-data-panel">
-	<div class="esc-data-toolbar" data-esc-table-toolbar="esc-admin-jobs">
+	<form method="get" class="esc-data-toolbar" data-esc-table-toolbar="esc-admin-jobs" action="<?php echo esc_url( $base ); ?>">
+		<input type="hidden" name="esc_view" value="jobs">
+		<input type="hidden" name="_esc_table" value="<?php echo esc_attr( wp_create_nonce( 'esc_portal_table' ) ); ?>">
 		<label class="esc-data-search">
 			<span class="screen-reader-text"><?php esc_html_e( 'Search jobs', 'es-care-portal' ); ?></span>
-			<input type="search" class="esc-data-search-input" placeholder="<?php esc_attr_e( 'Search title, location, company…', 'es-care-portal' ); ?>">
+			<input type="search" name="esc_q" class="esc-data-search-input" value="<?php echo esc_attr( $req['search'] ); ?>" placeholder="<?php esc_attr_e( 'Search title, location, company…', 'es-care-portal' ); ?>">
 		</label>
-		<label class="esc-data-filter">
+		<label class="esc-data-filter" for="esc-filter-job-status">
 			<span><?php esc_html_e( 'Status', 'es-care-portal' ); ?></span>
-			<select data-esc-filter="status">
+			<select id="esc-filter-job-status" name="esc_status" data-esc-filter="status">
 				<option value=""><?php esc_html_e( 'All statuses', 'es-care-portal' ); ?></option>
 				<?php foreach ( ESC_Portal_Helpers::job_statuses() as $key => $label ) : ?>
-					<option value="<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $label ); ?></option>
+					<option value="<?php echo esc_attr( $key ); ?>" <?php selected( $req['status'], $key ); ?>><?php echo esc_html( $label ); ?></option>
 				<?php endforeach; ?>
 			</select>
 		</label>
-		<p class="esc-data-count" aria-live="polite"></p>
-	</div>
+		<button type="submit" class="esc-button esc-button--small"><?php esc_html_e( 'Filter', 'es-care-portal' ); ?></button>
+		<p class="esc-data-count" aria-live="polite" data-esc-total="<?php echo esc_attr( (string) $jobs_total ); ?>"></p>
+	</form>
 
 	<div class="esc-table-wrap">
 		<table class="esc-table esc-data-table" id="esc-admin-jobs">
 			<thead>
 				<tr>
-					<th><button type="button" class="esc-sort" data-esc-sort="title"><?php esc_html_e( 'Title', 'es-care-portal' ); ?></button></th>
-					<th><button type="button" class="esc-sort" data-esc-sort="company"><?php esc_html_e( 'Company', 'es-care-portal' ); ?></button></th>
-					<th><button type="button" class="esc-sort" data-esc-sort="location"><?php esc_html_e( 'Location', 'es-care-portal' ); ?></button></th>
-					<th><button type="button" class="esc-sort" data-esc-sort="type"><?php esc_html_e( 'Type', 'es-care-portal' ); ?></button></th>
-					<th><button type="button" class="esc-sort" data-esc-sort="status"><?php esc_html_e( 'Status', 'es-care-portal' ); ?></button></th>
-					<th><button type="button" class="esc-sort" data-esc-sort="date" data-esc-sort-type="date"><?php esc_html_e( 'Posted', 'es-care-portal' ); ?></button></th>
-					<th><?php esc_html_e( 'Actions', 'es-care-portal' ); ?></th>
+					<?php echo ESC_Portal_Helpers::table_th( 'title', __( 'Title', 'es-care-portal' ), $req, $base ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+					<th scope="col"><?php esc_html_e( 'Company', 'es-care-portal' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Location', 'es-care-portal' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Type', 'es-care-portal' ); ?></th>
+					<?php echo ESC_Portal_Helpers::table_th( 'status', __( 'Status', 'es-care-portal' ), $req, $base ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+					<?php echo ESC_Portal_Helpers::table_th( 'date', __( 'Posted', 'es-care-portal' ), $req, $base ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+					<th scope="col"><?php esc_html_e( 'Actions', 'es-care-portal' ); ?></th>
 				</tr>
 			</thead>
 			<tbody>
 				<?php if ( empty( $jobs ) ) : ?>
 					<tr class="esc-data-empty">
-						<td colspan="7"><?php esc_html_e( 'No jobs yet.', 'es-care-portal' ); ?></td>
+						<td colspan="7"><?php esc_html_e( 'No jobs match this search.', 'es-care-portal' ); ?></td>
 					</tr>
 				<?php else : ?>
 					<?php foreach ( $jobs as $job ) : ?>
 						<?php
-						$status   = get_post_meta( $job->ID, '_esc_job_status', true );
-						$status   = $status ? $status : 'open';
+						$status   = ESC_Portal_Helpers::listing_status( $job );
 						$location = (string) get_post_meta( $job->ID, '_esc_location', true );
 						$type     = (string) get_post_meta( $job->ID, '_esc_employment_type', true );
 						$employer = absint( get_post_meta( $job->ID, '_esc_employer_id', true ) );
-						$owner    = $employer ? ESC_Portal_Users::get( $employer ) : null;
+						$owner    = isset( $employers[ $employer ] ) ? $employers[ $employer ] : null;
 						$company  = $owner && $owner->company_name ? $owner->company_name : ( $owner ? $owner->display_name : '' );
 						$type_lbl = isset( ESC_Portal_Helpers::employment_types()[ $type ] ) ? ESC_Portal_Helpers::employment_types()[ $type ] : $type;
 						?>
@@ -85,6 +94,22 @@ $jobs = is_array( $jobs ) ? $jobs : array();
 							<td data-label="<?php esc_attr_e( 'Actions', 'es-care-portal' ); ?>">
 								<div class="esc-row-action-group">
 									<a class="esc-button esc-button--ghost esc-button--small" href="<?php echo esc_url( get_permalink( $job ) ); ?>"><?php esc_html_e( 'View', 'es-care-portal' ); ?></a>
+									<?php if ( 'pending' === $job->post_status ) : ?>
+										<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+											<?php wp_nonce_field( 'esc_moderate_job_' . $job->ID, 'esc_moderate_job_nonce' ); ?>
+											<input type="hidden" name="action" value="esc_moderate_job">
+											<input type="hidden" name="esc_job_id" value="<?php echo esc_attr( (string) $job->ID ); ?>">
+											<input type="hidden" name="esc_moderate" value="approve">
+											<button type="submit" class="esc-button esc-button--small"><?php esc_html_e( 'Approve', 'es-care-portal' ); ?></button>
+										</form>
+										<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+											<?php wp_nonce_field( 'esc_moderate_job_' . $job->ID, 'esc_moderate_job_nonce' ); ?>
+											<input type="hidden" name="action" value="esc_moderate_job">
+											<input type="hidden" name="esc_job_id" value="<?php echo esc_attr( (string) $job->ID ); ?>">
+											<input type="hidden" name="esc_moderate" value="reject">
+											<button type="submit" class="esc-button esc-button--danger esc-button--small"><?php esc_html_e( 'Reject', 'es-care-portal' ); ?></button>
+										</form>
+									<?php endif; ?>
 									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-esc-confirm="<?php echo esc_attr__( 'Move this job and its public listing to Trash?', 'es-care-portal' ); ?>">
 										<?php wp_nonce_field( 'esc_delete_job_front', 'esc_delete_job_nonce' ); ?>
 										<input type="hidden" name="action" value="esc_delete_job_front">
@@ -99,4 +124,5 @@ $jobs = is_array( $jobs ) ? $jobs : array();
 			</tbody>
 		</table>
 	</div>
+	<?php echo ESC_Portal_Helpers::pagination_html( $jobs_total, $req, $base ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 </div>

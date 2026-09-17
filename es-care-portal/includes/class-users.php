@@ -15,8 +15,10 @@ class ESC_Portal_Users {
 	const ROLE_EMPLOYER = 'employer';
 	const ROLE_ADMIN    = 'admin';
 
-	const STATUS_ACTIVE   = 'active';
-	const STATUS_DISABLED = 'disabled';
+	const STATUS_PENDING_EMAIL = 'pending_email';
+	const STATUS_PENDING_ADMIN = 'pending_admin';
+	const STATUS_ACTIVE        = 'active';
+	const STATUS_DISABLED      = 'disabled';
 
 	/**
 	 * @return string
@@ -63,6 +65,26 @@ class ESC_Portal_Users {
 	}
 
 	/**
+	 * @return string[]
+	 */
+	public static function statuses() {
+		return array(
+			self::STATUS_PENDING_EMAIL => __( 'Pending email', 'es-care-portal' ),
+			self::STATUS_PENDING_ADMIN => __( 'Pending approval', 'es-care-portal' ),
+			self::STATUS_ACTIVE        => __( 'Active', 'es-care-portal' ),
+			self::STATUS_DISABLED      => __( 'Disabled', 'es-care-portal' ),
+		);
+	}
+
+	/**
+	 * @param string $status Status key.
+	 * @return bool
+	 */
+	public static function is_valid_status( $status ) {
+		return isset( self::statuses()[ $status ] );
+	}
+
+	/**
 	 * Create plugin tables.
 	 */
 	public static function install() {
@@ -106,7 +128,8 @@ class ESC_Portal_Users {
 				meta_value longtext,
 				PRIMARY KEY  (umeta_id),
 				KEY user_id (user_id),
-				KEY meta_key (meta_key(191))
+				KEY meta_key (meta_key(191)),
+				UNIQUE KEY user_meta (user_id, meta_key)
 			) {$charset};"
 		);
 
@@ -120,7 +143,8 @@ class ESC_Portal_Users {
 				PRIMARY KEY  (id),
 				KEY user_id (user_id),
 				KEY token_hash (token_hash),
-				KEY expires (expires)
+				KEY expires (expires),
+				KEY user_token_expires (user_id, token_hash, expires)
 			) {$charset};"
 		);
 	}
@@ -140,12 +164,52 @@ class ESC_Portal_Users {
 	}
 
 	/**
-	 * Create tables if missing (safe to call repeatedly).
+	 * Create tables if missing. Prefer schema migrations over calling this on every request.
 	 */
 	public static function ensure_tables() {
 		if ( ! self::tables_exist() ) {
 			self::install();
 		}
+	}
+
+	/**
+	 * @return int
+	 */
+	public static function query_count( $args = array() ) {
+		global $wpdb;
+
+		$sql = self::build_query_sql( $args, true );
+		return (int) $wpdb->get_var( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+
+	/**
+	 * @param int[] $ids User IDs.
+	 * @return array<int,object>
+	 */
+	public static function get_many( $ids ) {
+		global $wpdb;
+
+		$ids = array_values( array_filter( array_map( 'absint', (array) $ids ) ) );
+
+		if ( ! $ids ) {
+			return array();
+		}
+
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$sql          = $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE id IN (' . $placeholders . ')', $ids ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$rows         = $wpdb->get_results( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$out          = array();
+
+		if ( $rows ) {
+			foreach ( $rows as $row ) {
+				$user = self::hydrate( $row );
+				if ( $user ) {
+					$out[ $user->id ] = $user;
+				}
+			}
+		}
+
+		return $out;
 	}
 
 	/**
@@ -253,20 +317,41 @@ class ESC_Portal_Users {
 	public static function query( $args = array() ) {
 		global $wpdb;
 
+		$sql  = self::build_query_sql( $args, false );
+		$rows = $wpdb->get_results( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$out  = array();
+
+		if ( is_array( $rows ) ) {
+			foreach ( $rows as $row ) {
+				$out[] = self::hydrate( $row );
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * @param array $args    Query args.
+	 * @param bool  $count   Count only.
+	 * @return string
+	 */
+	private static function build_query_sql( $args, $count = false ) {
+		global $wpdb;
+
 		$args = wp_parse_args(
 			$args,
 			array(
 				'role'     => '',
 				'status'   => '',
 				'search'   => '',
-				'number'   => 100,
+				'number'   => 25,
 				'offset'   => 0,
 				'orderby'  => 'created_at',
 				'order'    => 'DESC',
 			)
 		);
 
-		$where = array( '1=1' );
+		$where  = array( '1=1' );
 		$params = array();
 
 		if ( $args['role'] && isset( self::roles()[ $args['role'] ] ) ) {
@@ -274,7 +359,7 @@ class ESC_Portal_Users {
 			$params[] = $args['role'];
 		}
 
-		if ( $args['status'] ) {
+		if ( $args['status'] && self::is_valid_status( $args['status'] ) ) {
 			$where[]  = 'status = %s';
 			$params[] = $args['status'];
 		}
@@ -288,27 +373,23 @@ class ESC_Portal_Users {
 			$params[] = $like;
 		}
 
-		$orderby = in_array( $args['orderby'], array( 'created_at', 'email', 'role', 'last_name' ), true ) ? $args['orderby'] : 'created_at';
+		$orderby = in_array( $args['orderby'], array( 'created_at', 'email', 'role', 'last_name', 'status' ), true ) ? $args['orderby'] : 'created_at';
 		$order   = ( 'ASC' === strtoupper( $args['order'] ) ) ? 'ASC' : 'DESC';
-		$limit   = max( 1, absint( $args['number'] ) );
+		$limit   = min( 100, max( 1, absint( $args['number'] ) ) );
 		$offset  = max( 0, absint( $args['offset'] ) );
 
-		$sql = 'SELECT * FROM ' . self::table() . ' WHERE ' . implode( ' AND ', $where ) . " ORDER BY {$orderby} {$order} LIMIT {$offset}, {$limit}";
+		$select = $count ? 'SELECT COUNT(*)' : 'SELECT *';
+		$sql    = $select . ' FROM ' . self::table() . ' WHERE ' . implode( ' AND ', $where );
+
+		if ( ! $count ) {
+			$sql .= " ORDER BY {$orderby} {$order} LIMIT {$offset}, {$limit}";
+		}
 
 		if ( $params ) {
 			$sql = $wpdb->prepare( $sql, $params ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		}
 
-		$rows = $wpdb->get_results( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		$out  = array();
-
-		if ( is_array( $rows ) ) {
-			foreach ( $rows as $row ) {
-				$out[] = self::hydrate( $row );
-			}
-		}
-
-		return $out;
+		return $sql;
 	}
 
 	/**
@@ -366,7 +447,7 @@ class ESC_Portal_Users {
 				'phone'        => isset( $data['phone'] ) ? sanitize_text_field( $data['phone'] ) : '',
 				'role'         => $role,
 				'company_name' => isset( $data['company_name'] ) ? sanitize_text_field( $data['company_name'] ) : '',
-				'status'       => isset( $data['status'] ) && in_array( sanitize_key( $data['status'] ), array( self::STATUS_ACTIVE, self::STATUS_DISABLED ), true ) ? sanitize_key( $data['status'] ) : self::STATUS_ACTIVE,
+				'status'       => isset( $data['status'] ) && self::is_valid_status( sanitize_key( $data['status'] ) ) ? sanitize_key( $data['status'] ) : self::STATUS_ACTIVE,
 				'created_at'   => $now,
 				'updated_at'   => $now,
 			),
@@ -421,7 +502,7 @@ class ESC_Portal_Users {
 				}
 			} elseif ( 'status' === $key ) {
 				$value = sanitize_key( $value );
-				if ( ! in_array( $value, array( self::STATUS_ACTIVE, self::STATUS_DISABLED ), true ) ) {
+				if ( ! self::is_valid_status( $value ) ) {
 					continue;
 				}
 			} elseif ( in_array( $key, array( 'reset_expires', 'last_login' ), true ) ) {
@@ -459,6 +540,8 @@ class ESC_Portal_Users {
 			return false;
 		}
 
+		ESC_Portal_Privacy::anonymize_user_records( $id );
+
 		$wpdb->delete( self::sessions_table(), array( 'user_id' => $id ), array( '%d' ) );
 		$wpdb->delete( self::meta_table(), array( 'user_id' => $id ), array( '%d' ) );
 		$wpdb->delete( ESC_Portal_Assessments::attempts_table(), array( 'user_id' => $id ), array( '%d' ) );
@@ -487,6 +570,14 @@ class ESC_Portal_Users {
 
 		if ( self::STATUS_DISABLED === $user->status ) {
 			return new WP_Error( 'esc_disabled', __( 'This account has been disabled.', 'es-care-portal' ) );
+		}
+
+		if ( self::STATUS_PENDING_EMAIL === $user->status ) {
+			return new WP_Error( 'esc_pending_email', __( 'Please verify your email address before signing in.', 'es-care-portal' ) );
+		}
+
+		if ( self::STATUS_PENDING_ADMIN === $user->status ) {
+			return new WP_Error( 'esc_pending_admin', __( 'Your employer account is waiting for administrator approval.', 'es-care-portal' ) );
 		}
 
 		return $user;
@@ -541,38 +632,26 @@ class ESC_Portal_Users {
 		$user_id = absint( $user_id );
 		$key     = sanitize_key( $key );
 		$stored  = maybe_serialize( $value );
+		$table   = self::meta_table();
 
-		$exists = $wpdb->get_var(
+		$wpdb->query(
 			$wpdb->prepare(
-				'SELECT umeta_id FROM ' . self::meta_table() . ' WHERE user_id = %d AND meta_key = %s LIMIT 1', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+				"INSERT INTO {$table} (user_id, meta_key, meta_value) VALUES (%d, %s, %s)
+				ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				$user_id,
-				$key
+				$key,
+				$stored
 			)
 		);
+	}
 
-		if ( $exists ) {
-			$wpdb->update(
-				self::meta_table(),
-				array( 'meta_value' => $stored ),
-				array(
-					'user_id'  => $user_id,
-					'meta_key' => $key,
-				),
-				array( '%s' ),
-				array( '%d', '%s' )
-			);
-			return;
-		}
-
-		$wpdb->insert(
-			self::meta_table(),
-			array(
-				'user_id'    => $user_id,
-				'meta_key'   => $key,
-				'meta_value' => $stored,
-			),
-			array( '%d', '%s', '%s' )
-		);
+	/**
+	 * @param string $status Status.
+	 * @return string
+	 */
+	public static function status_label( $status ) {
+		$statuses = self::statuses();
+		return isset( $statuses[ $status ] ) ? $statuses[ $status ] : $status;
 	}
 
 	/**

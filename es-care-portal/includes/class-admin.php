@@ -20,6 +20,7 @@ class ESC_Portal_Admin {
 		add_action( 'admin_post_esc_save_settings', array( __CLASS__, 'handle_save_settings' ) );
 		add_action( 'admin_post_esc_create_dashboard_user', array( __CLASS__, 'handle_create_dashboard_user' ) );
 		add_action( 'admin_post_esc_create_portal_admin', array( __CLASS__, 'handle_create_dashboard_user' ) );
+		add_action( 'admin_post_esc_retry_mail', array( __CLASS__, 'handle_retry_mail' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'notices' ) );
 	}
 
@@ -123,6 +124,15 @@ class ESC_Portal_Admin {
 			'manage_options',
 			'esc-portal-settings',
 			array( __CLASS__, 'render_settings' )
+		);
+
+		add_submenu_page(
+			'esc-portal',
+			__( 'Health', 'es-care-portal' ),
+			__( 'Health', 'es-care-portal' ),
+			'manage_options',
+			'esc-portal-health',
+			array( __CLASS__, 'render_health' )
 		);
 
 		remove_submenu_page( 'esc-portal', 'esc-application' );
@@ -291,6 +301,42 @@ class ESC_Portal_Admin {
 	}
 
 	/**
+	 * Operational health.
+	 */
+	public static function render_health() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You are not allowed to view this page.', 'es-care-portal' ) );
+		}
+
+		ESC_Portal_Helpers::admin_view(
+			'health',
+			array(
+				'health' => ESC_Portal_Health::snapshot(),
+			)
+		);
+	}
+
+	/**
+	 * Retry a queued email.
+	 */
+	public static function handle_retry_mail() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You are not allowed to do that.', 'es-care-portal' ) );
+		}
+
+		$id    = isset( $_POST['esc_mail_id'] ) ? absint( $_POST['esc_mail_id'] ) : 0;
+		$nonce = isset( $_POST['esc_retry_mail_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_retry_mail_nonce'] ) ) : '';
+
+		if ( ! $id || ! wp_verify_nonce( $nonce, 'esc_retry_mail_' . $id ) ) {
+			wp_die( esc_html__( 'The form expired. Please try again.', 'es-care-portal' ) );
+		}
+
+		ESC_Portal_Mail_Queue::retry( $id );
+		wp_safe_redirect( add_query_arg( array( 'page' => 'esc-portal-health', 'esc_updated' => '1' ), admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
+	/**
 	 * Save status and notes.
 	 */
 	public static function handle_save_application() {
@@ -430,6 +476,8 @@ class ESC_Portal_Admin {
 				'color_cta'            => self::sanitize_hex( isset( $_POST['color_cta'] ) ? wp_unslash( $_POST['color_cta'] ) : '', $defaults['color_cta'] ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 				'tile_seeker'          => self::sanitize_tile_list( isset( $_POST['tile_seeker'] ) ? wp_unslash( $_POST['tile_seeker'] ) : array(), array( 'apply', 'assessments', 'results', 'forms' ) ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 				'tile_employer'        => self::sanitize_tile_list( isset( $_POST['tile_employer'] ) ? wp_unslash( $_POST['tile_employer'] ) : array(), array( 'post', 'jobs', 'profile', 'membership' ) ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+				'retention_years'      => max( 1, min( 10, isset( $_POST['retention_years'] ) ? absint( wp_unslash( $_POST['retention_years'] ) ) : 3 ) ),
+				'delete_data_on_uninstall' => isset( $_POST['delete_data_on_uninstall'] ) ? 1 : 0,
 			)
 		);
 
@@ -443,7 +491,7 @@ class ESC_Portal_Admin {
 			$sent       = false;
 
 			if ( $test_email && is_email( $test_email ) ) {
-				$sent = wp_mail(
+				$sent = ESC_Portal_Emails::send_now(
 					$test_email,
 					__( 'ES Care Portal SMTP test', 'es-care-portal' ),
 					__( 'Success! ES Care Portal sent this message using your built-in SMTP settings.', 'es-care-portal' )
@@ -517,10 +565,30 @@ class ESC_Portal_Admin {
 
 		ESC_Portal_Users::ensure_tables();
 
+		$req = ESC_Portal_Helpers::table_request( array( 'created_at', 'email', 'role', 'last_name', 'status' ) );
+
 		ESC_Portal_Helpers::admin_view(
 			'users',
 			array(
-				'users'      => ESC_Portal_Users::query( array( 'number' => 200 ) ),
+				'users'      => ESC_Portal_Users::query(
+					array(
+						'number'  => $req['number'],
+						'offset'  => $req['offset'],
+						'search'  => $req['search'],
+						'role'    => $req['role'],
+						'status'  => $req['status'],
+						'orderby' => $req['orderby'],
+						'order'   => $req['order'],
+					)
+				),
+				'users_total'=> ESC_Portal_Users::query_count(
+					array(
+						'search' => $req['search'],
+						'role'   => $req['role'],
+						'status' => $req['status'],
+					)
+				),
+				'table_req'  => $req,
 				'counts'     => ESC_Portal_Users::counts_by_role(),
 				'table_name' => ESC_Portal_Users::table(),
 			)

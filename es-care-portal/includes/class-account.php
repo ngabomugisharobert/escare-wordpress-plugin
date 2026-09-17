@@ -68,7 +68,9 @@ class ESC_Portal_Account {
 		}
 
 		$user_id = ESC_Portal_Auth::current_user_id();
-		ESC_Portal_Users::delete( $user_id );
+		if ( ! ESC_Portal_Users::delete( $user_id ) ) {
+			ESC_Portal_Helpers::redirect_notice( $fallback, 'save-failed', 'error' );
+		}
 
 		ESC_Portal_Auth::logout_user();
 		ESC_Portal_Helpers::redirect_notice( ESC_Portal_Helpers::get_page_url( 'login' ), 'account-deleted', 'info' );

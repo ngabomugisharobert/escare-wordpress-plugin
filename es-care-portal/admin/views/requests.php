@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
 ?>
 <div class="wrap esc-admin">
 	<h1><?php esc_html_e( 'Service requests', 'es-care-portal' ); ?></h1>
-	<p class="esc-admin-lede"><?php esc_html_e( 'Requests sent from the job-seeker dashboard.', 'es-care-portal' ); ?></p>
+	<p class="esc-admin-lede"><?php esc_html_e( 'Messages sent from the public Contact Us form and from signed-in dashboards.', 'es-care-portal' ); ?></p>
 
 	<?php if ( empty( $requests ) ) : ?>
 		<p><?php esc_html_e( 'No service requests yet.', 'es-care-portal' ); ?></p>
@@ -19,17 +19,17 @@ defined( 'ABSPATH' ) || exit;
 		<table class="widefat striped">
 			<thead>
 				<tr>
-					<th><?php esc_html_e( 'From', 'es-care-portal' ); ?></th>
-					<th><?php esc_html_e( 'Subject', 'es-care-portal' ); ?></th>
-					<th><?php esc_html_e( 'Message', 'es-care-portal' ); ?></th>
-					<th><?php esc_html_e( 'Sent', 'es-care-portal' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'From', 'es-care-portal' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Subject', 'es-care-portal' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Message', 'es-care-portal' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Sent', 'es-care-portal' ); ?></th>
 				</tr>
 			</thead>
 			<tbody>
 				<?php foreach ( $requests as $request ) : ?>
 					<tr>
 						<td>
-							<?php echo esc_html( trim( $request->first_name . ' ' . $request->last_name ) ); ?>
+							<?php echo esc_html( $request->display_name ); ?>
 							<br><span class="description"><?php echo esc_html( $request->email ); ?></span>
 						</td>
 						<td><?php echo esc_html( $request->subject ); ?></td>

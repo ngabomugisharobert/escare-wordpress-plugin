@@ -17,6 +17,7 @@ defined( 'ABSPATH' ) || exit;
 		<p><?php esc_html_e( 'Use your job seeker, employer, or portal admin account. WordPress site users sign in separately via wp-login.', 'es-care-portal' ); ?></p>
 		<form class="esc-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<?php wp_nonce_field( 'esc_login', 'esc_login_nonce' ); ?>
+			<?php echo ESC_Portal_CSRF::field(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 			<input type="hidden" name="action" value="esc_login">
 			<?php if ( ! empty( $redirect_to ) ) : ?>
 				<input type="hidden" name="redirect_to" value="<?php echo esc_attr( $redirect_to ); ?>">

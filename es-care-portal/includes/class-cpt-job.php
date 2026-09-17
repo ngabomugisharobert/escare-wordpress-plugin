@@ -211,6 +211,7 @@ class ESC_Portal_CPT_Job {
 		update_post_meta( $post_id, '_esc_closing_date', $closing );
 		update_post_meta( $post_id, '_esc_employment_type', $type );
 		update_post_meta( $post_id, '_esc_job_status', $status );
+		wp_cache_delete( 'esc_job_locations', 'esc_portal' );
 	}
 
 	/**
@@ -271,22 +272,48 @@ class ESC_Portal_CPT_Job {
 	 * @return int
 	 */
 	public static function application_count( $job_id ) {
-		$query = new WP_Query(
-			array(
-				'post_type'      => 'esc_application',
-				'post_status'    => 'publish',
-				'posts_per_page' => 1,
-				'fields'         => 'ids',
-				'meta_query'     => array(
-					array(
-						'key'   => '_esc_job_id',
-						'value' => (int) $job_id,
-					),
-				),
-			)
-		);
+		$counts = self::application_counts( array( $job_id ) );
+		return isset( $counts[ (int) $job_id ] ) ? $counts[ (int) $job_id ] : 0;
+	}
 
-		return (int) $query->found_posts;
+	/**
+	 * Batch application counts keyed by job ID.
+	 *
+	 * @param int[] $job_ids Job IDs.
+	 * @return array<int,int>
+	 */
+	public static function application_counts( $job_ids ) {
+		global $wpdb;
+
+		$job_ids = array_values( array_filter( array_map( 'absint', (array) $job_ids ) ) );
+		$out     = array();
+
+		foreach ( $job_ids as $id ) {
+			$out[ $id ] = 0;
+		}
+
+		if ( ! $job_ids ) {
+			return $out;
+		}
+
+		$placeholders = implode( ',', array_fill( 0, count( $job_ids ), '%d' ) );
+		$sql          = "SELECT pm.meta_value AS job_id, COUNT(p.ID) AS total
+			FROM {$wpdb->postmeta} pm
+			INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+			WHERE pm.meta_key = '_esc_job_id'
+			AND p.post_type = 'esc_application'
+			AND p.post_status = 'publish'
+			AND pm.meta_value IN ({$placeholders})
+			GROUP BY pm.meta_value";
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $job_ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		if ( $rows ) {
+			foreach ( $rows as $row ) {
+				$out[ (int) $row->job_id ] = (int) $row->total;
+			}
+		}
+
+		return $out;
 	}
 
 	/**
@@ -327,6 +354,11 @@ class ESC_Portal_CPT_Job {
 	 * @return string[]
 	 */
 	public static function distinct_locations() {
+		$cached = wp_cache_get( 'esc_job_locations', 'esc_portal' );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
 		global $wpdb;
 
 		$results = $wpdb->get_col(
@@ -343,7 +375,10 @@ class ESC_Portal_CPT_Job {
 			return array();
 		}
 
-		return array_values( array_unique( array_map( 'strval', $results ) ) );
+		$results = array_values( array_unique( array_map( 'strval', $results ) ) );
+		wp_cache_set( 'esc_job_locations', $results, 'esc_portal', HOUR_IN_SECONDS );
+
+		return $results;
 	}
 
 	/**

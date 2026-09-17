@@ -17,6 +17,7 @@ defined( 'ABSPATH' ) || exit;
 		<p><?php esc_html_e( 'Choose whether you are looking for work or hiring, then create your portal account.', 'es-care-portal' ); ?></p>
 		<form class="esc-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="esc-register-form">
 			<?php wp_nonce_field( 'esc_register', 'esc_register_nonce' ); ?>
+			<?php echo ESC_Portal_CSRF::field(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 			<input type="hidden" name="action" value="esc_register">
 			<?php if ( ! empty( $redirect_to ) ) : ?>
 				<input type="hidden" name="redirect_to" value="<?php echo esc_attr( $redirect_to ); ?>">

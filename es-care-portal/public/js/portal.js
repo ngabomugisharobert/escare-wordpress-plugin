@@ -4,6 +4,9 @@
 	var i18n = window.escPortal || {};
 	var showLabel = i18n.showPassword || 'Show password';
 	var hideLabel = i18n.hidePassword || 'Hide password';
+	var resumeTooBig = i18n.resumeTooBig || 'That resume is larger than the allowed file size.';
+	var zeroResults = i18n.zeroResults || 'No matching rows on this page.';
+	var resultCount = i18n.resultCount || '%1$s of %2$s on this page (%3$s total)';
 
 	function eyeIcon(hidden) {
 		if (hidden) {
@@ -91,7 +94,7 @@
 
 		var max = parseInt(input.getAttribute('data-esc-max'), 10);
 		if (max && input.files[0].size > max) {
-			window.alert('That resume is larger than the allowed file size.');
+			window.alert(resumeTooBig);
 			input.value = '';
 		}
 	});
@@ -100,10 +103,14 @@
 		document.addEventListener('DOMContentLoaded', function () {
 			initPasswordToggles();
 			initDataTables();
+			initUserModal();
+			initMessageModal();
 		});
 	} else {
 		initPasswordToggles();
 		initDataTables();
+		initUserModal();
+		initMessageModal();
 	}
 
 	function initDataTables() {
@@ -129,13 +136,36 @@
 		var filters = toolbar.querySelectorAll('[data-esc-filter]');
 		var countEl = toolbar.querySelector('.esc-data-count');
 		var sortButtons = table.querySelectorAll('.esc-sort');
+		var headers = table.querySelectorAll('th[scope="col"]');
 		var sortKey = '';
 		var sortDir = 'asc';
+		var emptyRow = tbody.querySelector('.esc-data-empty');
+		var total = countEl ? parseInt(countEl.getAttribute('data-esc-total') || '0', 10) : 0;
+		var colCount = table.querySelectorAll('thead th').length || 1;
+
+		if (!emptyRow) {
+			emptyRow = document.createElement('tr');
+			emptyRow.className = 'esc-data-empty is-hidden';
+			emptyRow.innerHTML = '<td colspan="' + colCount + '">' + zeroResults + '</td>';
+			tbody.appendChild(emptyRow);
+		}
 
 		function rows() {
 			return Array.prototype.slice.call(tbody.querySelectorAll('tr')).filter(function (row) {
 				return !row.classList.contains('esc-data-empty');
 			});
+		}
+
+		function announceCount(visible, pageTotal) {
+			if (!countEl) {
+				return;
+			}
+
+			var complete = total || pageTotal;
+			countEl.textContent = resultCount
+				.replace('%1$s', String(visible))
+				.replace('%2$s', String(pageTotal))
+				.replace('%3$s', String(complete));
 		}
 
 		function applyFilter() {
@@ -176,9 +206,14 @@
 				}
 			}
 
-			if (countEl) {
-				countEl.textContent = visible + ' of ' + all.length;
+			if (emptyRow) {
+				emptyRow.classList.toggle('is-hidden', visible > 0 || all.length === 0);
+				if (visible === 0 && all.length) {
+					emptyRow.querySelector('td').textContent = zeroResults;
+				}
 			}
+
+			announceCount(visible, all.length);
 		}
 
 		function applySort(key, type, button) {
@@ -193,6 +228,14 @@
 				sortButtons[s].classList.remove('is-asc', 'is-desc');
 			}
 			button.classList.add(sortDir === 'asc' ? 'is-asc' : 'is-desc');
+
+			for (var h = 0; h < headers.length; h++) {
+				headers[h].setAttribute('aria-sort', 'none');
+			}
+			var header = button.closest('th');
+			if (header) {
+				header.setAttribute('aria-sort', sortDir === 'asc' ? 'ascending' : 'descending');
+			}
 
 			var list = rows();
 			list.sort(function (a, b) {
@@ -219,6 +262,11 @@
 			for (var i = 0; i < list.length; i++) {
 				tbody.appendChild(list[i]);
 			}
+			if (emptyRow) {
+				tbody.appendChild(emptyRow);
+			}
+
+			button.focus();
 		}
 
 		if (search) {
@@ -229,6 +277,9 @@
 		}
 		for (var si = 0; si < sortButtons.length; si++) {
 			(function (btn) {
+				if (btn.tagName === 'A') {
+					return;
+				}
 				btn.addEventListener('click', function () {
 					applySort(btn.getAttribute('data-esc-sort'), btn.getAttribute('data-esc-sort-type') || 'text', btn);
 				});
@@ -236,5 +287,175 @@
 		}
 
 		applyFilter();
+	}
+
+	function initUserModal() {
+		var dialog = document.getElementById('esc-user-modal');
+		if (!dialog) {
+			return;
+		}
+
+		var opener = null;
+
+		function setValue(selector, value) {
+			var nodes = dialog.querySelectorAll(selector);
+			for (var i = 0; i < nodes.length; i++) {
+				nodes[i].value = value || '';
+			}
+		}
+
+		function fill(button) {
+			setValue('[data-esc-modal-user-id]', button.getAttribute('data-user-id'));
+			setValue('[data-esc-modal-delete-nonce]', button.getAttribute('data-delete-nonce'));
+			setValue('[data-esc-modal-resend-nonce]', button.getAttribute('data-resend-nonce'));
+			setValue('[data-esc-modal-approve-nonce]', button.getAttribute('data-approve-nonce'));
+			setValue('[data-esc-modal-reject-nonce]', button.getAttribute('data-reject-nonce'));
+
+			var nameEl = dialog.querySelector('[data-esc-modal-name]');
+			var emailEl = dialog.querySelector('[data-esc-modal-email]');
+			if (nameEl) {
+				nameEl.textContent = button.getAttribute('data-name') || '';
+			}
+			if (emailEl) {
+				emailEl.textContent = button.getAttribute('data-email') || '';
+			}
+
+			var role = dialog.querySelector('[data-esc-modal-role]');
+			var status = dialog.querySelector('[data-esc-modal-status]');
+			if (role) {
+				role.value = button.getAttribute('data-role') || '';
+			}
+			if (status) {
+				status.value = button.getAttribute('data-status') || '';
+			}
+
+			var pendingEmail = dialog.querySelector('[data-esc-modal-pending-email]');
+			var pendingAdmin = dialog.querySelector('[data-esc-modal-pending-admin]');
+			var del = dialog.querySelector('[data-esc-modal-delete]');
+			if (pendingEmail) {
+				pendingEmail.hidden = button.getAttribute('data-pending-email') !== '1';
+			}
+			if (pendingAdmin) {
+				pendingAdmin.hidden = button.getAttribute('data-pending-admin') !== '1';
+			}
+			if (del) {
+				del.hidden = button.getAttribute('data-can-delete') !== '1';
+			}
+		}
+
+		function openModal(button) {
+			opener = button;
+			fill(button);
+			if (typeof dialog.showModal === 'function') {
+				dialog.showModal();
+			} else {
+				dialog.setAttribute('open', 'open');
+			}
+			var first = dialog.querySelector('[data-esc-modal-role]');
+			if (first) {
+				first.focus();
+			}
+		}
+
+		function closeModal() {
+			if (typeof dialog.close === 'function' && dialog.open) {
+				dialog.close();
+			} else {
+				dialog.removeAttribute('open');
+			}
+			if (opener && typeof opener.focus === 'function') {
+				opener.focus();
+			}
+		}
+
+		document.addEventListener('click', function (event) {
+			var button = event.target.closest ? event.target.closest('[data-esc-user-manage]') : null;
+			if (button) {
+				event.preventDefault();
+				openModal(button);
+				return;
+			}
+			if (event.target.closest && event.target.closest('[data-esc-modal-close]') && event.target.closest('.esc-modal') === dialog) {
+				event.preventDefault();
+				closeModal();
+			}
+		});
+
+		dialog.addEventListener('click', function (event) {
+			if (event.target === dialog) {
+				closeModal();
+			}
+		});
+
+		dialog.addEventListener('close', function () {
+			if (opener && typeof opener.focus === 'function') {
+				opener.focus();
+			}
+		});
+	}
+
+	function initMessageModal() {
+		var dialog = document.getElementById('esc-contact-modal');
+		if (!dialog) {
+			return;
+		}
+
+		var opener = null;
+
+		function fill(button) {
+			var map = {
+				'[data-esc-message-name]': button.getAttribute('data-name') || '',
+				'[data-esc-message-email]': button.getAttribute('data-email') || '',
+				'[data-esc-message-subject]': button.getAttribute('data-subject') || '',
+				'[data-esc-message-sent]': button.getAttribute('data-sent') || '',
+				'[data-esc-message-body]': button.getAttribute('data-message') || ''
+			};
+			Object.keys(map).forEach(function (selector) {
+				var el = dialog.querySelector(selector);
+				if (el) {
+					el.textContent = map[selector];
+				}
+			});
+		}
+
+		function openModal(button) {
+			opener = button;
+			fill(button);
+			if (typeof dialog.showModal === 'function') {
+				dialog.showModal();
+			} else {
+				dialog.setAttribute('open', 'open');
+			}
+		}
+
+		function closeModal() {
+			if (typeof dialog.close === 'function' && dialog.open) {
+				dialog.close();
+			} else {
+				dialog.removeAttribute('open');
+			}
+			if (opener && typeof opener.focus === 'function') {
+				opener.focus();
+			}
+		}
+
+		document.addEventListener('click', function (event) {
+			var button = event.target.closest ? event.target.closest('[data-esc-message-view]') : null;
+			if (button) {
+				event.preventDefault();
+				openModal(button);
+				return;
+			}
+			if (event.target.closest && event.target.closest('[data-esc-modal-close]') && event.target.closest('.esc-modal') === dialog) {
+				event.preventDefault();
+				closeModal();
+			}
+		});
+
+		dialog.addEventListener('click', function (event) {
+			if (event.target === dialog) {
+				closeModal();
+			}
+		});
 	}
 })();

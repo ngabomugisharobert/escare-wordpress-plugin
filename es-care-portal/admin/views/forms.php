@@ -26,10 +26,10 @@ defined( 'ABSPATH' ) || exit;
 				<table class="widefat striped">
 					<thead>
 						<tr>
-							<th><?php esc_html_e( 'Title', 'es-care-portal' ); ?></th>
-							<th><?php esc_html_e( 'File', 'es-care-portal' ); ?></th>
-							<th><?php esc_html_e( 'Added', 'es-care-portal' ); ?></th>
-							<th><?php esc_html_e( 'Actions', 'es-care-portal' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Title', 'es-care-portal' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'File', 'es-care-portal' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Added', 'es-care-portal' ); ?></th>
+							<th scope="col"><?php esc_html_e( 'Actions', 'es-care-portal' ); ?></th>
 						</tr>
 					</thead>
 					<tbody>

@@ -99,14 +99,6 @@ $states          = ESC_Portal_Helpers::us_states();
 				<input type="tel" id="esc_phone" name="esc_phone" required placeholder="<?php esc_attr_e( 'Enter here', 'es-care-portal' ); ?>" value="<?php echo esc_attr( isset( $profile['phone'] ) ? $profile['phone'] : '' ); ?>">
 			</p>
 			<p class="esc-field">
-				<label for="esc_ssn"><?php esc_html_e( 'Social Security Number', 'es-care-portal' ); ?></label>
-				<input type="text" id="esc_ssn" name="esc_ssn" placeholder="<?php esc_attr_e( 'Enter here', 'es-care-portal' ); ?>" autocomplete="off" value="">
-			</p>
-			<p class="esc-field">
-				<label for="esc_drivers_license"><?php esc_html_e( "Driver's License / ID Number", 'es-care-portal' ); ?></label>
-				<input type="text" id="esc_drivers_license" name="esc_drivers_license" placeholder="<?php esc_attr_e( 'Enter here', 'es-care-portal' ); ?>" value="<?php echo esc_attr( isset( $profile['drivers_license'] ) ? $profile['drivers_license'] : '' ); ?>">
-			</p>
-			<p class="esc-field">
 				<label for="esc_professional_license"><?php esc_html_e( 'Professional License Number', 'es-care-portal' ); ?></label>
 				<input type="text" id="esc_professional_license" name="esc_professional_license" placeholder="<?php esc_attr_e( 'Enter here', 'es-care-portal' ); ?>" value="<?php echo esc_attr( isset( $profile['professional_license'] ) ? $profile['professional_license'] : '' ); ?>">
 			</p>

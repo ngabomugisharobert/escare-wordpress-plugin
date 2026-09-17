@@ -35,12 +35,16 @@ class ESC_Portal_Forms {
 		dbDelta(
 			"CREATE TABLE {$reqs} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-				user_id bigint(20) unsigned NOT NULL,
+				user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				name varchar(190) NOT NULL DEFAULT '',
+				email varchar(190) NOT NULL DEFAULT '',
 				subject varchar(190) NOT NULL,
 				message text NOT NULL,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (id),
-				KEY user_id (user_id)
+				KEY user_id (user_id),
+				KEY user_created (user_id, created_at),
+				KEY created_at (created_at)
 			) {$charset};"
 		);
 
@@ -67,6 +71,19 @@ class ESC_Portal_Forms {
 	 * @return string
 	 */
 	public static function directory() {
+		if ( defined( 'ESC_PORTAL_PRIVATE_DIR' ) && ESC_PORTAL_PRIVATE_DIR ) {
+			return trailingslashit( ESC_PORTAL_PRIVATE_DIR ) . 'esc-forms';
+		}
+
+		return trailingslashit( dirname( ABSPATH ) ) . 'esc-portal-private/esc-forms';
+	}
+
+	/**
+	 * Legacy forms directory.
+	 *
+	 * @return string
+	 */
+	public static function legacy_directory() {
 		$uploads = wp_upload_dir();
 		$base    = ! empty( $uploads['basedir'] ) ? $uploads['basedir'] : WP_CONTENT_DIR . '/uploads';
 
@@ -79,22 +96,54 @@ class ESC_Portal_Forms {
 	public static function ensure_directory() {
 		$dir = self::directory();
 
-		if ( ! is_dir( $dir ) ) {
-			wp_mkdir_p( $dir );
+		if ( ! is_dir( $dir ) && ! wp_mkdir_p( $dir ) ) {
+			return false;
 		}
 
-		if ( ! file_exists( $dir . '/index.php' ) ) {
-			file_put_contents( $dir . '/index.php', "<?php\n// Silence is golden.\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		ESC_Portal_Uploads::write_deny_files( $dir );
+
+		$legacy = self::legacy_directory();
+		if ( is_dir( $legacy ) ) {
+			ESC_Portal_Uploads::write_deny_files( $legacy );
 		}
 
-		if ( ! file_exists( $dir . '/.htaccess' ) ) {
-			file_put_contents( $dir . '/.htaccess', "Require all denied\nDeny from all\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		return is_writable( $dir );
+	}
+
+	/**
+	 * Move legacy form files to private storage.
+	 *
+	 * @return int
+	 */
+	public static function migrate_existing_files() {
+		if ( ! self::ensure_directory() ) {
+			return 0;
 		}
 
-		if ( ! file_exists( $dir . '/web.config' ) ) {
-			$rules = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration><system.webServer><security><authorization><remove users=\"*\" roles=\"\" verbs=\"\"/><add accessType=\"Deny\" users=\"*\"/></authorization></security></system.webServer></configuration>\n";
-			file_put_contents( $dir . '/web.config', $rules ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		$legacy = self::legacy_directory();
+		$dest   = self::directory();
+		$moved  = 0;
+
+		if ( ! is_dir( $legacy ) || realpath( $legacy ) === realpath( $dest ) ) {
+			return 0;
 		}
+
+		$files = glob( trailingslashit( $legacy ) . '*.*' );
+		if ( ! $files ) {
+			return 0;
+		}
+
+		foreach ( $files as $file ) {
+			$name = basename( $file );
+			if ( in_array( $name, array( '.htaccess', 'index.php', 'web.config' ), true ) ) {
+				continue;
+			}
+			if ( @rename( $file, trailingslashit( $dest ) . $name ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				$moved++;
+			}
+		}
+
+		return $moved;
 	}
 
 	/**
@@ -126,21 +175,163 @@ class ESC_Portal_Forms {
 	}
 
 	/**
-	 * @return object[]
+	 * @param object $row Request row.
+	 * @return object
 	 */
-	public static function all_requests() {
-		global $wpdb;
+	public static function hydrate_request( $row ) {
+		$row = (object) $row;
+		$name  = isset( $row->display_name ) ? trim( (string) $row->display_name ) : '';
+		$email = isset( $row->email ) ? (string) $row->email : '';
 
-		$rows = $wpdb->get_results(
-			'SELECT r.*, u.first_name, u.last_name, u.email FROM ' . self::requests_table() . ' r LEFT JOIN ' . ESC_Portal_Users::table() . ' u ON u.id = r.user_id ORDER BY r.created_at DESC LIMIT 100' // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		);
+		if ( ! $name ) {
+			$name = trim( ( isset( $row->first_name ) ? $row->first_name : '' ) . ' ' . ( isset( $row->last_name ) ? $row->last_name : '' ) );
+		}
 
-		return is_array( $rows ) ? $rows : array();
+		if ( ! $name && ! empty( $row->contact_name ) ) {
+			$name = (string) $row->contact_name;
+		}
+
+		if ( ! $email && ! empty( $row->user_email ) ) {
+			$email = (string) $row->user_email;
+		}
+
+		if ( ! $email && ! empty( $row->contact_email ) ) {
+			$email = (string) $row->contact_email;
+		}
+
+		$row->display_name = $name ? $name : $email;
+		$row->email        = $email;
+
+		return $row;
 	}
 
 	/**
-	 * WP admin upload handler.
+	 * @param array $args Query args.
+	 * @return object[]
 	 */
+	public static function query_requests( $args = array() ) {
+		global $wpdb;
+
+		$sql  = self::build_requests_sql( $args, false );
+		$rows = $wpdb->get_results( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$out  = array();
+
+		if ( is_array( $rows ) ) {
+			foreach ( $rows as $row ) {
+				$out[] = self::hydrate_request( $row );
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * @param array $args Query args.
+	 * @return int
+	 */
+	public static function query_requests_count( $args = array() ) {
+		global $wpdb;
+
+		return (int) $wpdb->get_var( self::build_requests_sql( $args, true ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+
+	/**
+	 * @param array $args  Query args.
+	 * @param bool  $count Count only.
+	 * @return string
+	 */
+	private static function build_requests_sql( $args, $count = false ) {
+		global $wpdb;
+
+		$args = wp_parse_args(
+			$args,
+			array(
+				'search'  => '',
+				'number'  => 25,
+				'offset'  => 0,
+				'orderby' => 'created_at',
+				'order'   => 'DESC',
+			)
+		);
+
+		$req_table  = self::requests_table();
+		$user_table = ESC_Portal_Users::table();
+		$where      = array( '1=1' );
+		$params     = array();
+
+		if ( ! empty( $args['search'] ) ) {
+			$like     = '%' . $wpdb->esc_like( $args['search'] ) . '%';
+			$where[]  = '(r.subject LIKE %s OR r.message LIKE %s OR r.name LIKE %s OR r.email LIKE %s OR u.email LIKE %s OR u.first_name LIKE %s OR u.last_name LIKE %s)';
+			$params[] = $like;
+			$params[] = $like;
+			$params[] = $like;
+			$params[] = $like;
+			$params[] = $like;
+			$params[] = $like;
+			$params[] = $like;
+		}
+
+		$orderby = 'r.created_at';
+		$allowed = array(
+			'created_at' => 'r.created_at',
+			'subject'    => 'r.subject',
+			'email'      => 'COALESCE(NULLIF(u.email, \'\'), r.email)',
+			'name'       => 'COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.first_name, \'\'), \' \', IFNULL(u.last_name, \'\'))), \'\'), r.name)',
+		);
+
+		if ( isset( $allowed[ $args['orderby'] ] ) ) {
+			$orderby = $allowed[ $args['orderby'] ];
+		}
+
+		$order  = ( 'ASC' === strtoupper( (string) $args['order'] ) ) ? 'ASC' : 'DESC';
+		$select = $count
+			? 'COUNT(*)'
+			: 'r.id, r.user_id, r.subject, r.message, r.created_at, r.name AS contact_name, r.email AS contact_email, u.first_name, u.last_name, u.email AS user_email, COALESCE(NULLIF(TRIM(CONCAT(IFNULL(u.first_name, \'\'), \' \', IFNULL(u.last_name, \'\'))), \'\'), r.name) AS display_name, COALESCE(NULLIF(u.email, \'\'), r.email) AS email';
+		$sql    = "SELECT {$select} FROM {$req_table} r LEFT JOIN {$user_table} u ON u.id = r.user_id WHERE " . implode( ' AND ', $where );
+
+		if ( $params ) {
+			$sql = $wpdb->prepare( $sql, $params ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		}
+
+		if ( ! $count ) {
+			$sql .= $wpdb->prepare(
+				" ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				max( 1, (int) $args['number'] ),
+				max( 0, (int) $args['offset'] )
+			);
+		}
+
+		return $sql;
+	}
+
+	/**
+	 * @return object[]
+	 */
+	public static function all_requests() {
+		return self::query_requests(
+			array(
+				'number' => 100,
+				'offset' => 0,
+			)
+		);
+	}
+
+	/**
+	 * Absolute path for a stored form file.
+	 *
+	 * @param string $stored Relative name.
+	 * @return string
+	 */
+	public static function absolute_path( $stored ) {
+		$stored = basename( $stored );
+		$private = trailingslashit( self::directory() ) . $stored;
+		if ( is_readable( $private ) ) {
+			return $private;
+		}
+
+		$legacy = trailingslashit( self::legacy_directory() ) . $stored;
+		return is_readable( $legacy ) ? $legacy : $private;
+	}
 	public static function handle_admin_upload() {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'You are not allowed to do that.', 'es-care-portal' ) );
@@ -183,7 +374,7 @@ class ESC_Portal_Forms {
 
 		global $wpdb;
 
-		$wpdb->insert(
+		$ok = $wpdb->insert(
 			self::table(),
 			array(
 				'title'         => $title,
@@ -193,6 +384,12 @@ class ESC_Portal_Forms {
 			),
 			array( '%s', '%s', '%s', '%s' )
 		);
+
+		if ( ! $ok ) {
+			wp_delete_file( $dest );
+			wp_safe_redirect( add_query_arg( array( 'page' => 'esc-portal-forms', 'esc_error' => '1' ), admin_url( 'admin.php' ) ) );
+			exit;
+		}
 
 		wp_safe_redirect( add_query_arg( array( 'page' => 'esc-portal-forms', 'esc_updated' => '1' ), admin_url( 'admin.php' ) ) );
 		exit;
@@ -218,7 +415,7 @@ class ESC_Portal_Forms {
 		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE id = %d', $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 
 		if ( $row ) {
-			$path = trailingslashit( self::directory() ) . basename( $row->stored );
+			$path = self::absolute_path( $row->stored );
 
 			if ( is_file( $path ) ) {
 				wp_delete_file( $path );
@@ -256,7 +453,7 @@ class ESC_Portal_Forms {
 			wp_die( esc_html__( 'File not found.', 'es-care-portal' ), 404 );
 		}
 
-		$path = trailingslashit( self::directory() ) . basename( $row->stored );
+		$path = self::absolute_path( $row->stored );
 
 		if ( ! is_readable( $path ) ) {
 			wp_die( esc_html__( 'File not found.', 'es-care-portal' ), 404 );
@@ -293,7 +490,7 @@ class ESC_Portal_Forms {
 	}
 
 	/**
-	 * Service request from a job seeker or employer.
+	 * Service request from a logged-in job seeker or employer.
 	 */
 	public static function handle_request() {
 		$fallback = ESC_Portal_Helpers::dashboard_url( 'request' );
@@ -306,30 +503,101 @@ class ESC_Portal_Forms {
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'nonce', 'error' );
 		}
 
+		if ( ! ESC_Portal_Rate_Limit::allow( 'request', (string) ESC_Portal_Auth::current_user_id() ) ) {
+			ESC_Portal_Helpers::redirect_notice( $fallback, 'rate-limited', 'error' );
+		}
+
+		$user    = ESC_Portal_Auth::current_user();
 		$subject = isset( $_POST['esc_subject'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_subject'] ) ) : '';
 		$message = isset( $_POST['esc_message'] ) ? sanitize_textarea_field( wp_unslash( $_POST['esc_message'] ) ) : '';
 
-		if ( ! $subject || ! $message ) {
+		if ( ! self::save_request( $user ? (int) $user->id : 0, $user ? $user->display_name : '', $user ? $user->email : '', $subject, $message ) ) {
+			ESC_Portal_Helpers::redirect_notice( $fallback, $subject && $message ? 'save-failed' : 'required', 'error' );
+		}
+
+		ESC_Portal_Emails::contact_received( $user->display_name, $user->email, $subject, $message );
+		ESC_Portal_Helpers::redirect_notice( $fallback, 'request-sent', 'success' );
+	}
+
+	/**
+	 * Public Contact Us form — no account required.
+	 */
+	public static function handle_contact() {
+		$fallback = ESC_Portal_Helpers::get_page_url( 'contact' );
+
+		if ( ! empty( $_POST['esc_website'] ) ) {
+			ESC_Portal_Helpers::redirect_notice( $fallback, 'contact-sent', 'success' );
+		}
+
+		if ( ! isset( $_POST['esc_contact_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['esc_contact_nonce'] ) ), 'esc_contact' ) || ! ESC_Portal_CSRF::verify() ) {
+			ESC_Portal_Helpers::redirect_notice( $fallback, 'nonce', 'error' );
+		}
+
+		$name    = isset( $_POST['esc_name'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_name'] ) ) : '';
+		$email   = isset( $_POST['esc_email'] ) ? sanitize_email( wp_unslash( $_POST['esc_email'] ) ) : '';
+		$subject = isset( $_POST['esc_subject'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_subject'] ) ) : '';
+		$message = isset( $_POST['esc_message'] ) ? sanitize_textarea_field( wp_unslash( $_POST['esc_message'] ) ) : '';
+		$user    = ESC_Portal_Auth::current_user();
+		$account = $email ? $email : ( $user ? (string) $user->id : '' );
+
+		if ( ! ESC_Portal_Rate_Limit::allow( 'contact', $account ) ) {
+			ESC_Portal_Helpers::redirect_notice( $fallback, 'rate-limited', 'error' );
+		}
+
+		if ( $user ) {
+			if ( ! $name ) {
+				$name = $user->display_name;
+			}
+			if ( ! $email ) {
+				$email = $user->email;
+			}
+		}
+
+		if ( ! $name || ! is_email( $email ) || ! $subject || ! $message || strlen( $message ) > 4000 ) {
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'required', 'error' );
+		}
+
+		if ( ! self::save_request( $user ? (int) $user->id : 0, $name, $email, $subject, $message ) ) {
+			ESC_Portal_Helpers::redirect_notice( $fallback, 'save-failed', 'error' );
+		}
+
+		ESC_Portal_Emails::contact_received( $name, $email, $subject, $message );
+		ESC_Portal_Helpers::redirect_notice( $fallback, 'contact-sent', 'success' );
+	}
+
+	/**
+	 * @param int    $user_id Sender portal user ID, or 0 for guests.
+	 * @param string $name    Sender name.
+	 * @param string $email   Sender email.
+	 * @param string $subject Subject.
+	 * @param string $message Message.
+	 * @return bool
+	 */
+	public static function save_request( $user_id, $name, $email, $subject, $message ) {
+		$subject = sanitize_text_field( $subject );
+		$message = sanitize_textarea_field( $message );
+		$name    = sanitize_text_field( $name );
+		$email   = sanitize_email( $email );
+
+		if ( ! $subject || ! $message ) {
+			return false;
 		}
 
 		global $wpdb;
 
-		$user = ESC_Portal_Auth::current_user();
-
-		$wpdb->insert(
+		$ok = $wpdb->insert(
 			self::requests_table(),
 			array(
-				'user_id'    => $user->id,
+				'user_id'    => absint( $user_id ),
+				'name'       => $name,
+				'email'      => $email,
 				'subject'    => $subject,
 				'message'    => $message,
 				'created_at' => current_time( 'mysql' ),
 			),
-			array( '%d', '%s', '%s', '%s' )
+			array( '%d', '%s', '%s', '%s', '%s', '%s' )
 		);
 
-		ESC_Portal_Emails::service_request_received( $user, $subject, $message );
-
-		ESC_Portal_Helpers::redirect_notice( $fallback, 'request-sent', 'success' );
+		return (bool) $ok;
 	}
 }

@@ -19,11 +19,11 @@ defined( 'ABSPATH' ) || exit;
 		<table class="widefat striped">
 			<thead>
 				<tr>
-					<th><?php esc_html_e( 'Candidate', 'es-care-portal' ); ?></th>
-					<th><?php esc_html_e( 'Test', 'es-care-portal' ); ?></th>
-					<th><?php esc_html_e( 'Score', 'es-care-portal' ); ?></th>
-					<th><?php esc_html_e( 'Result', 'es-care-portal' ); ?></th>
-					<th><?php esc_html_e( 'Date', 'es-care-portal' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Candidate', 'es-care-portal' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Test', 'es-care-portal' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Score', 'es-care-portal' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Result', 'es-care-portal' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Date', 'es-care-portal' ); ?></th>
 				</tr>
 			</thead>
 			<tbody>

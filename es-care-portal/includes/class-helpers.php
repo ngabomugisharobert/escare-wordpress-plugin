@@ -38,6 +38,8 @@ class ESC_Portal_Helpers {
 			'color_cta'             => '#2e7d32',
 			'tile_seeker'           => array( 'apply', 'assessments', 'results', 'forms' ),
 			'tile_employer'         => array( 'post', 'jobs', 'profile', 'membership' ),
+			'retention_years'       => 3,
+			'delete_data_on_uninstall' => 0,
 		);
 	}
 
@@ -70,7 +72,9 @@ class ESC_Portal_Helpers {
 			$settings['tile_employer'] = $defaults['tile_employer'];
 		}
 
-		$settings['max_file_mb'] = max( 1, absint( $settings['max_file_mb'] ) );
+		$settings['max_file_mb']      = max( 1, absint( $settings['max_file_mb'] ) );
+		$settings['retention_years']  = max( 1, min( 10, absint( $settings['retention_years'] ) ) );
+		$settings['delete_data_on_uninstall'] = empty( $settings['delete_data_on_uninstall'] ) ? 0 : 1;
 
 		return $settings;
 	}
@@ -111,6 +115,7 @@ class ESC_Portal_Helpers {
 			'post-job',
 			'lost-password',
 			'reset-password',
+			'contact',
 		);
 	}
 
@@ -178,7 +183,7 @@ class ESC_Portal_Helpers {
 		if ( 'employer' === $role ) {
 			$allowed = array( 'home', 'profile', 'jobs', 'password', 'request', 'membership', 'post' );
 		} elseif ( 'admin' === $role ) {
-			$allowed = array( 'home', 'users', 'jobs', 'applications' );
+			$allowed = array( 'home', 'users', 'jobs', 'applications', 'contact' );
 		}
 
 		return in_array( $view, $allowed, true ) ? $view : 'home';
@@ -314,8 +319,10 @@ class ESC_Portal_Helpers {
 	 */
 	public static function job_statuses() {
 		return array(
-			'open'   => __( 'Open', 'es-care-portal' ),
-			'closed' => __( 'Closed', 'es-care-portal' ),
+			'open'     => __( 'Open', 'es-care-portal' ),
+			'closed'   => __( 'Closed', 'es-care-portal' ),
+			'pending'  => __( 'Pending review', 'es-care-portal' ),
+			'rejected' => __( 'Rejected', 'es-care-portal' ),
 		);
 	}
 
@@ -465,9 +472,35 @@ class ESC_Portal_Helpers {
 	 */
 	public static function format_status( $status ) {
 		$key      = sanitize_key( $status );
-		$statuses = array_merge( self::application_statuses(), self::job_statuses() );
+		$statuses = array_merge( self::application_statuses(), self::job_statuses(), ESC_Portal_Users::statuses() );
 
 		return isset( $statuses[ $key ] ) ? $statuses[ $key ] : $status;
+	}
+
+	/**
+	 * Listing status considering WordPress post_status and job meta.
+	 *
+	 * @param WP_Post|int $job Job.
+	 * @return string
+	 */
+	public static function listing_status( $job ) {
+		$post = $job instanceof WP_Post ? $job : get_post( $job );
+
+		if ( ! $post ) {
+			return 'closed';
+		}
+
+		if ( 'pending' === $post->post_status ) {
+			return 'pending';
+		}
+
+		if ( 'draft' === $post->post_status ) {
+			return 'rejected';
+		}
+
+		$status = (string) get_post_meta( $post->ID, '_esc_job_status', true );
+
+		return $status ? $status : 'open';
 	}
 
 	/**
@@ -584,6 +617,20 @@ class ESC_Portal_Helpers {
 			'assessment-passed' => __( 'You passed the assessment. Download employment forms when you are ready.', 'es-care-portal' ),
 			'assessment-failed' => __( 'Your assessment was recorded. You can review the score and try again.', 'es-care-portal' ),
 			'request-sent'      => __( 'Your service request was sent. We will follow up with you.', 'es-care-portal' ),
+			'contact-sent'      => __( 'Thanks — your message was sent. We will follow up with you.', 'es-care-portal' ),
+			'verify-email'      => __( 'Check your email to verify this employer account. An administrator must then approve it before you can post jobs.', 'es-care-portal' ),
+			'email-verified'    => __( 'Your email is verified. An administrator will review your employer account shortly.', 'es-care-portal' ),
+			'pending-email'     => __( 'Please verify your email address before signing in.', 'es-care-portal' ),
+			'pending-admin'     => __( 'Your employer account is waiting for administrator approval.', 'es-care-portal' ),
+			'employer-approved' => __( 'The employer account has been approved.', 'es-care-portal' ),
+			'employer-rejected' => __( 'The employer account has been rejected and disabled.', 'es-care-portal' ),
+			'verify-resent'     => __( 'A new verification email was sent.', 'es-care-portal' ),
+			'job-pending'       => __( 'Your job listing was submitted for administrator review.', 'es-care-portal' ),
+			'job-approved'      => __( 'The job listing is now published.', 'es-care-portal' ),
+			'job-rejected'      => __( 'The job listing was rejected.', 'es-care-portal' ),
+			'rate-limited'      => __( 'Too many requests. Please wait a few minutes and try again.', 'es-care-portal' ),
+			'save-failed'       => __( 'The information could not be saved. Please try again.', 'es-care-portal' ),
+			'storage-unavailable' => __( 'File storage is unavailable. Please contact the site administrator.', 'es-care-portal' ),
 		);
 
 		return isset( $map[ $code ] ) ? $map[ $code ] : '';
@@ -667,5 +714,195 @@ class ESC_Portal_Helpers {
 		$redirect = wp_validate_redirect( esc_url_raw( $redirect ), '' );
 
 		return $redirect;
+	}
+
+	/**
+	 * Parse allowlisted list-table request args from the query string.
+	 *
+	 * @param array $allowed_orderby Allowed orderby keys.
+	 * @return array
+	 */
+	public static function table_request( $allowed_orderby = array() ) {
+		$has_query = isset( $_GET['esc_q'] ) || isset( $_GET['esc_orderby'] ) || isset( $_GET['esc_paged'] ) || isset( $_GET['esc_status'] ) || isset( $_GET['esc_role'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$nonce     = isset( $_GET['_esc_table'] ) ? sanitize_text_field( wp_unslash( $_GET['_esc_table'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		if ( $has_query && ! wp_verify_nonce( $nonce, 'esc_portal_table' ) ) {
+			$has_query = false;
+		}
+
+		$orderby = ( $has_query && isset( $_GET['esc_orderby'] ) ) ? sanitize_key( wp_unslash( $_GET['esc_orderby'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$order   = ( $has_query && isset( $_GET['esc_order'] ) ) ? strtoupper( sanitize_key( wp_unslash( $_GET['esc_order'] ) ) ) : 'DESC'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$paged   = ( $has_query && isset( $_GET['esc_paged'] ) ) ? absint( $_GET['esc_paged'] ) : 1; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$per     = ( $has_query && isset( $_GET['esc_per_page'] ) ) ? absint( $_GET['esc_per_page'] ) : 25; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$search  = ( $has_query && isset( $_GET['esc_q'] ) ) ? sanitize_text_field( wp_unslash( $_GET['esc_q'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$status  = ( $has_query && isset( $_GET['esc_status'] ) ) ? sanitize_key( wp_unslash( $_GET['esc_status'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$role    = ( $has_query && isset( $_GET['esc_role'] ) ) ? sanitize_key( wp_unslash( $_GET['esc_role'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		if ( ! in_array( $orderby, $allowed_orderby, true ) ) {
+			$orderby = $allowed_orderby ? $allowed_orderby[0] : 'created_at';
+		}
+
+		if ( ! in_array( $order, array( 'ASC', 'DESC' ), true ) ) {
+			$order = 'DESC';
+		}
+
+		$per   = min( 100, max( 10, $per ) );
+		$paged = max( 1, $paged );
+
+		return array(
+			'orderby' => $orderby,
+			'order'   => $order,
+			'paged'   => $paged,
+			'number'  => $per,
+			'offset'  => ( $paged - 1 ) * $per,
+			'search'  => $search,
+			'status'  => $status,
+			'role'    => $role,
+		);
+	}
+
+	/**
+	 * Render server-side pagination links.
+	 *
+	 * @param int    $total Total items.
+	 * @param array  $req   table_request() result.
+	 * @param string $url   Base URL.
+	 * @return string
+	 */
+	public static function pagination_html( $total, $req, $url ) {
+		$total  = max( 0, (int) $total );
+		$per    = max( 1, (int) $req['number'] );
+		$paged  = max( 1, (int) $req['paged'] );
+		$pages  = max( 1, (int) ceil( $total / $per ) );
+		$paged  = min( $paged, $pages );
+		$from   = $total ? ( ( $paged - 1 ) * $per ) + 1 : 0;
+		$to     = min( $total, $paged * $per );
+		$args   = self::table_query_args( $req );
+
+		if ( $total ) {
+			$summary = sprintf(
+				/* translators: 1: first item on page, 2: last item on page, 3: total items */
+				__( 'Showing %1$s–%2$s of %3$s', 'es-care-portal' ),
+				number_format_i18n( $from ),
+				number_format_i18n( $to ),
+				number_format_i18n( $total )
+			);
+		} else {
+			$summary = __( 'No results', 'es-care-portal' );
+		}
+
+		$html  = '<nav class="esc-pagination" aria-label="' . esc_attr__( 'Table pagination', 'es-care-portal' ) . '">';
+		$html .= '<p class="esc-pagination-summary">' . esc_html( $summary ) . '</p>';
+
+		if ( $pages > 1 ) {
+			$html .= '<div class="esc-pagination-pages">';
+
+			if ( $paged > 1 ) {
+				$html .= '<a class="esc-page-btn" href="' . esc_url( add_query_arg( array_merge( $args, array( 'esc_paged' => $paged - 1 ) ), $url ) ) . '">' . esc_html__( 'Previous', 'es-care-portal' ) . '</a>';
+			} else {
+				$html .= '<span class="esc-page-btn is-disabled" aria-disabled="true">' . esc_html__( 'Previous', 'es-care-portal' ) . '</span>';
+			}
+
+			$window = 2;
+			$start  = max( 1, $paged - $window );
+			$end    = min( $pages, $paged + $window );
+
+			if ( $start > 1 ) {
+				$html .= '<a class="esc-page-btn" href="' . esc_url( add_query_arg( array_merge( $args, array( 'esc_paged' => 1 ) ), $url ) ) . '">1</a>';
+				if ( $start > 2 ) {
+					$html .= '<span class="esc-page-ellipsis" aria-hidden="true">…</span>';
+				}
+			}
+
+			for ( $page = $start; $page <= $end; $page++ ) {
+				if ( $page === $paged ) {
+					$html .= '<span class="esc-page-btn is-current" aria-current="page">' . esc_html( number_format_i18n( $page ) ) . '</span>';
+				} else {
+					$html .= '<a class="esc-page-btn" href="' . esc_url( add_query_arg( array_merge( $args, array( 'esc_paged' => $page ) ), $url ) ) . '">' . esc_html( number_format_i18n( $page ) ) . '</a>';
+				}
+			}
+
+			if ( $end < $pages ) {
+				if ( $end < $pages - 1 ) {
+					$html .= '<span class="esc-page-ellipsis" aria-hidden="true">…</span>';
+				}
+				$html .= '<a class="esc-page-btn" href="' . esc_url( add_query_arg( array_merge( $args, array( 'esc_paged' => $pages ) ), $url ) ) . '">' . esc_html( number_format_i18n( $pages ) ) . '</a>';
+			}
+
+			if ( $paged < $pages ) {
+				$html .= '<a class="esc-page-btn" href="' . esc_url( add_query_arg( array_merge( $args, array( 'esc_paged' => $paged + 1 ) ), $url ) ) . '">' . esc_html__( 'Next', 'es-care-portal' ) . '</a>';
+			} else {
+				$html .= '<span class="esc-page-btn is-disabled" aria-disabled="true">' . esc_html__( 'Next', 'es-care-portal' ) . '</span>';
+			}
+
+			$html .= '</div>';
+		}
+
+		$html .= '</nav>';
+
+		return $html;
+	}
+
+	/**
+	 * Sortable column URL.
+	 *
+	 * @param string $column Column key.
+	 * @param array  $req    Request.
+	 * @param string $url    Base URL.
+	 * @return string
+	 */
+	public static function sort_url( $column, $req, $url ) {
+		$order = ( $req['orderby'] === $column && 'ASC' === $req['order'] ) ? 'DESC' : 'ASC';
+
+		return add_query_arg(
+			array_merge(
+				self::table_query_args( $req ),
+				array(
+					'esc_orderby' => $column,
+					'esc_order'   => $order,
+					'esc_paged'   => 1,
+				)
+			),
+			$url
+		);
+	}
+
+	/**
+	 * Allowlisted query args for table filters and pagination.
+	 *
+	 * @param array $req Request.
+	 * @return array
+	 */
+	public static function table_query_args( $req ) {
+		return array(
+			'esc_q'        => isset( $req['search'] ) ? $req['search'] : '',
+			'esc_status'   => isset( $req['status'] ) ? $req['status'] : '',
+			'esc_role'     => isset( $req['role'] ) ? $req['role'] : '',
+			'esc_orderby'  => isset( $req['orderby'] ) ? $req['orderby'] : '',
+			'esc_order'    => isset( $req['order'] ) ? $req['order'] : 'DESC',
+			'esc_per_page' => isset( $req['number'] ) ? $req['number'] : 25,
+			'_esc_table'   => wp_create_nonce( 'esc_portal_table' ),
+		);
+	}
+
+	/**
+	 * Accessible sortable table header.
+	 *
+	 * @param string $column Column key.
+	 * @param string $label  Visible label.
+	 * @param array  $req    Request.
+	 * @param string $url    Base URL.
+	 * @return string
+	 */
+	public static function table_th( $column, $label, $req, $url ) {
+		$sorted = isset( $req['orderby'] ) && $req['orderby'] === $column;
+		$dir    = $sorted && isset( $req['order'] ) && 'ASC' === $req['order'] ? 'ascending' : ( $sorted ? 'descending' : 'none' );
+		$class  = 'esc-sort';
+
+		if ( $sorted ) {
+			$class .= ( 'ascending' === $dir ) ? ' is-asc' : ' is-desc';
+		}
+
+		return '<th scope="col" aria-sort="' . esc_attr( $dir ) . '"><a class="' . esc_attr( $class ) . '" href="' . esc_url( self::sort_url( $column, $req, $url ) ) . '">' . esc_html( $label ) . '</a></th>';
 	}
 }

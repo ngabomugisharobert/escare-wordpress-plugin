@@ -62,15 +62,32 @@ $employer_tiles = array(
 		</table>
 
 		<h2><?php esc_html_e( 'Built-in SMTP email', 'es-care-portal' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'Send portal confirmations directly through your control-panel mailbox. This configuration takes priority over other WordPress mail plugins when enabled.', 'es-care-portal' ); ?></p>
+		<p class="description"><?php esc_html_e( 'Send portal confirmations through your control-panel mailbox. SMTP is applied only to ES Care Portal mail, not every WordPress email.', 'es-care-portal' ); ?></p>
 		<table class="form-table" role="presentation">
 			<tr>
 				<th scope="row"><?php esc_html_e( 'Enable SMTP', 'es-care-portal' ); ?></th>
 				<td>
 					<label>
 						<input type="checkbox" name="smtp_enabled" value="1" <?php checked( ! empty( $settings['smtp_enabled'] ) ); ?>>
-						<?php esc_html_e( 'Use ES Care Portal SMTP for all WordPress email', 'es-care-portal' ); ?>
+						<?php esc_html_e( 'Use ES Care Portal SMTP for portal-generated email', 'es-care-portal' ); ?>
 					</label>
+					<p class="description"><?php esc_html_e( 'This SMTP configuration applies only to portal messages. It does not replace WordPress site mail.', 'es-care-portal' ); ?></p>
+					<?php
+					$conflicts = ESC_Portal_Emails::conflicting_plugins();
+					if ( $conflicts ) :
+						?>
+						<p class="description">
+							<?php
+							echo esc_html(
+								sprintf(
+									/* translators: %s: plugin names */
+									__( 'Detected SMTP plugins that send WordPress mail globally: %s. Portal SMTP stays scoped to portal messages only.', 'es-care-portal' ),
+									implode( ', ', $conflicts )
+								)
+							);
+							?>
+						</p>
+					<?php endif; ?>
 				</td>
 			</tr>
 			<tr>
@@ -161,6 +178,27 @@ $employer_tiles = array(
 							<?php echo esc_html( $label ); ?>
 						</label><br>
 					<?php endforeach; ?>
+				</td>
+			</tr>
+		</table>
+
+		<h2><?php esc_html_e( 'Privacy and retention', 'es-care-portal' ); ?></h2>
+		<table class="form-table" role="presentation">
+			<tr>
+				<th scope="row"><label for="retention_years"><?php esc_html_e( 'Application retention (years)', 'es-care-portal' ); ?></label></th>
+				<td>
+					<input type="number" min="1" max="10" id="retention_years" name="retention_years" value="<?php echo esc_attr( (string) ( isset( $settings['retention_years'] ) ? $settings['retention_years'] : 3 ) ); ?>">
+					<p class="description"><?php esc_html_e( 'Expired applications and resume files are deleted automatically after this period. Default is 3 years.', 'es-care-portal' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Uninstall', 'es-care-portal' ); ?></th>
+				<td>
+					<label>
+						<input type="checkbox" name="delete_data_on_uninstall" value="1" <?php checked( ! empty( $settings['delete_data_on_uninstall'] ) ); ?>>
+						<?php esc_html_e( 'Delete all portal tables, files, and generated pages when the plugin is deleted', 'es-care-portal' ); ?>
+					</label>
+					<p class="description"><?php esc_html_e( 'Leave this unchecked to preserve jobs, applications, users, and uploads if the plugin is removed.', 'es-care-portal' ); ?></p>
 				</td>
 			</tr>
 		</table>

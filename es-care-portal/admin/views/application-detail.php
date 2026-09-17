@@ -19,12 +19,6 @@ $states     = ESC_Portal_Helpers::us_states();
 $state_label = isset( $states[ $snap['state'] ] ) ? $states[ $snap['state'] ] : $snap['state'];
 $estate_label = isset( $states[ $snap['emergency_state'] ] ) ? $states[ $snap['emergency_state'] ] : $snap['emergency_state'];
 $resume     = $snap['resume_file'];
-$ssn_display = $snap['ssn'];
-
-if ( strlen( preg_replace( '/\D/', '', $ssn_display ) ) >= 4 ) {
-	$digits      = preg_replace( '/\D/', '', $ssn_display );
-	$ssn_display = '***-**-' . substr( $digits, -4 );
-}
 ?>
 <div class="wrap esc-admin esc-admin-detail">
 	<p><a href="<?php echo esc_url( admin_url( 'admin.php?page=esc-applications' ) ); ?>">&larr; <?php esc_html_e( 'All applications', 'es-care-portal' ); ?></a></p>
@@ -57,10 +51,6 @@ if ( strlen( preg_replace( '/\D/', '', $ssn_display ) ) >= 4 ) {
 				<dd><?php echo esc_html( trim( $snap['city'] . ', ' . $state_label . ' ' . $snap['zip'], ', ' ) ); ?></dd>
 				<dt><?php esc_html_e( 'Years at address', 'es-care-portal' ); ?></dt>
 				<dd><?php echo esc_html( $snap['years_at_address'] ? $snap['years_at_address'] : '—' ); ?></dd>
-				<dt><?php esc_html_e( 'SSN', 'es-care-portal' ); ?></dt>
-				<dd><?php echo esc_html( $ssn_display ? $ssn_display : '—' ); ?></dd>
-				<dt><?php esc_html_e( 'Driver’s license / ID', 'es-care-portal' ); ?></dt>
-				<dd><?php echo esc_html( $snap['drivers_license'] ? $snap['drivers_license'] : '—' ); ?></dd>
 				<dt><?php esc_html_e( 'Professional license', 'es-care-portal' ); ?></dt>
 				<dd><?php echo esc_html( $snap['professional_license'] ? $snap['professional_license'] : '—' ); ?></dd>
 				<dt><?php esc_html_e( 'Date of birth', 'es-care-portal' ); ?></dt>

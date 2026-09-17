@@ -10,6 +10,13 @@ defined( 'ABSPATH' ) || exit;
 class ESC_Portal_Emails {
 
 	/**
+	 * Whether the current wp_mail() call originated from this plugin.
+	 *
+	 * @var bool
+	 */
+	private static $sending = false;
+
+	/**
 	 * Register built-in SMTP configuration.
 	 */
 	public static function init() {
@@ -19,11 +26,15 @@ class ESC_Portal_Emails {
 	}
 
 	/**
-	 * Configure WordPress' PHPMailer with the portal SMTP account.
+	 * Configure WordPress' PHPMailer with the portal SMTP account for portal mail only.
 	 *
 	 * @param PHPMailer\PHPMailer\PHPMailer $phpmailer Mailer instance.
 	 */
 	public static function configure_smtp( $phpmailer ) {
+		if ( ! self::$sending ) {
+			return;
+		}
+
 		$settings = ESC_Portal_Helpers::get_settings();
 
 		if ( empty( $settings['smtp_enabled'] ) || empty( $settings['smtp_host'] ) ) {
@@ -33,24 +44,28 @@ class ESC_Portal_Emails {
 		$password = self::decrypt_secret( isset( $settings['smtp_password'] ) ? $settings['smtp_password'] : '' );
 
 		$phpmailer->isSMTP();
-		$phpmailer->Host       = $settings['smtp_host'];
-		$phpmailer->Port       = max( 1, min( 65535, absint( $settings['smtp_port'] ) ) );
-		$phpmailer->SMTPAuth   = ! empty( $settings['smtp_username'] );
-		$phpmailer->Username   = isset( $settings['smtp_username'] ) ? $settings['smtp_username'] : '';
-		$phpmailer->Password   = $password;
+		$phpmailer->Host        = $settings['smtp_host'];
+		$phpmailer->Port        = max( 1, min( 65535, absint( $settings['smtp_port'] ) ) );
+		$phpmailer->SMTPAuth    = ! empty( $settings['smtp_username'] );
+		$phpmailer->Username    = isset( $settings['smtp_username'] ) ? $settings['smtp_username'] : '';
+		$phpmailer->Password    = $password;
 		$phpmailer->SMTPAutoTLS = false;
 
-		$encryption = isset( $settings['smtp_encryption'] ) ? sanitize_key( $settings['smtp_encryption'] ) : '';
+		$encryption            = isset( $settings['smtp_encryption'] ) ? sanitize_key( $settings['smtp_encryption'] ) : '';
 		$phpmailer->SMTPSecure = in_array( $encryption, array( 'ssl', 'tls' ), true ) ? $encryption : 'ssl';
 	}
 
 	/**
-	 * Use the configured SMTP sender address.
+	 * Use the configured SMTP sender address for portal mail only.
 	 *
 	 * @param string $from Existing address.
 	 * @return string
 	 */
 	public static function mail_from( $from ) {
+		if ( ! self::$sending ) {
+			return $from;
+		}
+
 		$settings = ESC_Portal_Helpers::get_settings();
 		$email    = isset( $settings['smtp_from_email'] ) ? sanitize_email( $settings['smtp_from_email'] ) : '';
 
@@ -58,12 +73,16 @@ class ESC_Portal_Emails {
 	}
 
 	/**
-	 * Use the configured SMTP sender name.
+	 * Use the configured SMTP sender name for portal mail only.
 	 *
 	 * @param string $name Existing name.
 	 * @return string
 	 */
 	public static function mail_from_name( $name ) {
+		if ( ! self::$sending ) {
+			return $name;
+		}
+
 		$settings  = ESC_Portal_Helpers::get_settings();
 		$from_name = isset( $settings['smtp_from_name'] ) ? sanitize_text_field( $settings['smtp_from_name'] ) : '';
 
@@ -71,7 +90,79 @@ class ESC_Portal_Emails {
 	}
 
 	/**
-	 * Encrypt an SMTP password before saving it.
+	 * Queue a portal email.
+	 *
+	 * @param string          $to      Recipient.
+	 * @param string          $subject Subject.
+	 * @param string          $body    Body.
+	 * @param string|string[] $headers Headers.
+	 * @return bool
+	 */
+	public static function send( $to, $subject, $body, $headers = array() ) {
+		return (bool) ESC_Portal_Mail_Queue::enqueue( $to, $subject, $body, $headers );
+	}
+
+	/**
+	 * Send immediately using scoped SMTP.
+	 *
+	 * @param string          $to      Recipient.
+	 * @param string          $subject Subject.
+	 * @param string          $body    Body.
+	 * @param string|string[] $headers Headers.
+	 * @return bool
+	 */
+	public static function send_now( $to, $subject, $body, $headers = array() ) {
+		self::$sending = true;
+		$sent          = wp_mail( $to, $subject, $body, $headers );
+		self::$sending = false;
+
+		return (bool) $sent;
+	}
+
+	/**
+	 * Known SMTP plugins that may conflict with portal-scoped mail.
+	 *
+	 * @return string[]
+	 */
+	public static function conflicting_plugins() {
+		$known = array(
+			'wp-mail-smtp/wp_mail_smtp.php'       => 'WP Mail SMTP',
+			'suremails/suremails.php'             => 'SureMail',
+			'post-smtp/postman-smtp.php'          => 'Post SMTP',
+			'easy-wp-smtp/easy-wp-smtp.php'       => 'Easy WP SMTP',
+			'fluent-smtp/fluent-smtp.php'         => 'FluentSMTP',
+			'gmail-smtp/main.php'                 => 'Gmail SMTP',
+		);
+
+		$active = array();
+		if ( ! function_exists( 'is_plugin_active' ) ) {
+			return $active;
+		}
+
+		foreach ( $known as $file => $label ) {
+			if ( is_plugin_active( $file ) ) {
+				$active[] = $label;
+			}
+		}
+
+		return $active;
+	}
+
+	/**
+	 * Encryption key: dedicated constant when available, otherwise the auth salt.
+	 *
+	 * @return string
+	 */
+	private static function secret_key() {
+		if ( defined( 'ESC_PORTAL_SECRET_KEY' ) && ESC_PORTAL_SECRET_KEY ) {
+			return hash( 'sha256', (string) ESC_PORTAL_SECRET_KEY, true );
+		}
+
+		return hash( 'sha256', wp_salt( 'auth' ), true );
+	}
+
+	/**
+	 * Encrypt an SMTP password before saving it (authenticated GCM only).
 	 *
 	 * @param string $secret Plain secret.
 	 * @return string
@@ -81,30 +172,24 @@ class ESC_Portal_Emails {
 			return '';
 		}
 
-		$key = hash( 'sha256', wp_salt( 'auth' ), true );
-
-		if ( in_array( 'aes-256-gcm', openssl_get_cipher_methods(), true ) ) {
-			$iv     = openssl_random_pseudo_bytes( 12 );
-			$tag    = '';
-			$cipher = openssl_encrypt( $secret, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag );
-
-			if ( false !== $cipher && 16 === strlen( $tag ) ) {
-				return 'enc2:' . base64_encode( $iv . $tag . $cipher ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
-			}
-		}
-
-		$iv     = openssl_random_pseudo_bytes( 16 );
-		$cipher = openssl_encrypt( $secret, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv );
-
-		if ( false === $cipher ) {
+		if ( ! in_array( 'aes-256-gcm', openssl_get_cipher_methods(), true ) ) {
 			return '';
 		}
 
-		return 'enc:' . base64_encode( $iv . $cipher ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+		$key    = self::secret_key();
+		$iv     = openssl_random_pseudo_bytes( 12 );
+		$tag    = '';
+		$cipher = openssl_encrypt( $secret, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag );
+
+		if ( false === $cipher || 16 !== strlen( $tag ) ) {
+			return '';
+		}
+
+		return 'enc2:' . base64_encode( $iv . $tag . $cipher ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 	}
 
 	/**
-	 * Decrypt a saved SMTP password.
+	 * Decrypt a saved SMTP password. Legacy CBC is accepted only to migrate.
 	 *
 	 * @param string $stored Encrypted secret.
 	 * @return string
@@ -114,7 +199,7 @@ class ESC_Portal_Emails {
 			return '';
 		}
 
-		$key = hash( 'sha256', wp_salt( 'auth' ), true );
+		$key = self::secret_key();
 
 		if ( 0 === strpos( $stored, 'enc2:' ) ) {
 			$raw = base64_decode( substr( $stored, 5 ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode
@@ -141,11 +226,32 @@ class ESC_Portal_Emails {
 			return '';
 		}
 
+		$legacy = hash( 'sha256', wp_salt( 'auth' ), true );
 		$iv     = substr( $raw, 0, 16 );
 		$cipher = substr( $raw, 16 );
-		$secret = openssl_decrypt( $cipher, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv );
+		$secret = openssl_decrypt( $cipher, 'AES-256-CBC', $legacy, OPENSSL_RAW_DATA, $iv );
 
 		return false === $secret ? '' : $secret;
+	}
+
+	/**
+	 * Re-encrypt a legacy CBC SMTP password to GCM and drop CBC storage.
+	 */
+	public static function reencrypt_legacy_secret() {
+		$settings = ESC_Portal_Helpers::get_settings();
+		$stored   = isset( $settings['smtp_password'] ) ? $settings['smtp_password'] : '';
+
+		if ( ! is_string( $stored ) || 0 !== strpos( $stored, 'enc:' ) ) {
+			return;
+		}
+
+		$plain = self::decrypt_secret( $stored );
+		$fresh = $plain ? self::encrypt_secret( $plain ) : '';
+
+		if ( $fresh ) {
+			$settings['smtp_password'] = $fresh;
+			ESC_Portal_Helpers::update_settings( $settings );
+		}
 	}
 
 	/**
@@ -206,7 +312,7 @@ class ESC_Portal_Emails {
 		$body     .= '<p><a href="' . esc_url( $dashboard ) . '">' . esc_html__( 'Open your dashboard', 'es-care-portal' ) . '</a> &nbsp;|&nbsp; ';
 		$body     .= '<a href="' . esc_url( $careers ) . '">' . esc_html__( 'Browse careers', 'es-care-portal' ) . '</a></p>';
 
-		wp_mail(
+		self::send(
 			$user->email,
 			sprintf(
 				/* translators: %s: site name */
@@ -241,7 +347,7 @@ class ESC_Portal_Emails {
 		$body .= '<p>' . esc_html__( 'Use the link below to choose a new password. It expires in one hour.', 'es-care-portal' ) . '</p>';
 		$body .= '<p><a href="' . esc_url( $reset ) . '">' . esc_html__( 'Reset your password', 'es-care-portal' ) . '</a></p>';
 
-		wp_mail(
+		self::send(
 			$user->email,
 			__( 'Reset your password', 'es-care-portal' ),
 			self::wrap( __( 'Password reset', 'es-care-portal' ), $body ),
@@ -271,7 +377,7 @@ class ESC_Portal_Emails {
 			) . '</p>';
 			$body .= '<p><a href="' . esc_url( ESC_Portal_Helpers::get_page_url( 'dashboard' ) ) . '">' . esc_html__( 'View your applications', 'es-care-portal' ) . '</a></p>';
 
-			wp_mail(
+			self::send(
 				$snap['email'],
 				sprintf(
 					/* translators: %s: job title */
@@ -303,7 +409,7 @@ class ESC_Portal_Emails {
 			) . '</p>';
 			$body .= '<p><a href="' . esc_url( $admin_url ) . '">' . esc_html__( 'Review application', 'es-care-portal' ) . '</a></p>';
 
-			wp_mail(
+			self::send(
 				$staff,
 				sprintf(
 					/* translators: %s: job title */
@@ -328,7 +434,7 @@ class ESC_Portal_Emails {
 			) . '</p>';
 			$body .= '<p><a href="' . esc_url( $dash ) . '">' . esc_html__( 'Review in your dashboard', 'es-care-portal' ) . '</a></p>';
 
-			wp_mail(
+			self::send(
 				$employer->email,
 				sprintf(
 					/* translators: %s: job title */
@@ -342,31 +448,37 @@ class ESC_Portal_Emails {
 	}
 
 	/**
-	 * Confirm a service request to its sender and notify staff.
+	 * Confirm a contact message to its sender and notify staff.
 	 *
-	 * @param object $user    Portal user.
-	 * @param string $subject Request subject.
-	 * @param string $message Request message.
+	 * @param string $name    Sender name.
+	 * @param string $email   Sender email.
+	 * @param string $subject Subject.
+	 * @param string $message Message.
 	 */
-	public static function service_request_received( $user, $subject, $message ) {
-		if ( $user && ! empty( $user->email ) && is_email( $user->email ) ) {
+	public static function contact_received( $name, $email, $subject, $message ) {
+		$name    = (string) $name;
+		$email   = (string) $email;
+		$subject = (string) $subject;
+		$message = (string) $message;
+
+		if ( $email && is_email( $email ) ) {
 			$body  = '<p>' . sprintf(
 				/* translators: %s: first name */
 				esc_html__( 'Hello %s,', 'es-care-portal' ),
-				esc_html( $user->first_name ? $user->first_name : $user->display_name )
+				esc_html( $name ? $name : $email )
 			) . '</p>';
-			$body .= '<p>' . esc_html__( 'We received your service request and will follow up with you.', 'es-care-portal' ) . '</p>';
+			$body .= '<p>' . esc_html__( 'We received your message and will follow up with you.', 'es-care-portal' ) . '</p>';
 			$body .= '<p><strong>' . esc_html__( 'Subject:', 'es-care-portal' ) . '</strong> ' . esc_html( $subject ) . '</p>';
 			$body .= '<p><strong>' . esc_html__( 'Message:', 'es-care-portal' ) . '</strong><br>' . nl2br( esc_html( $message ) ) . '</p>';
 
-			wp_mail(
-				$user->email,
+			self::send(
+				$email,
 				sprintf(
 					/* translators: %s: request subject */
-					__( 'Service request received: %s', 'es-care-portal' ),
+					__( 'We received your message: %s', 'es-care-portal' ),
 					$subject
 				),
-				self::wrap( __( 'Service request received', 'es-care-portal' ), $body ),
+				self::wrap( __( 'Message received', 'es-care-portal' ), $body ),
 				self::headers()
 			);
 		}
@@ -374,27 +486,45 @@ class ESC_Portal_Emails {
 		$settings = ESC_Portal_Helpers::get_settings();
 		$staff    = ! empty( $settings['notification_email'] ) ? $settings['notification_email'] : '';
 
-		if ( $staff && is_email( $staff ) && ( ! $user || strtolower( $staff ) !== strtolower( $user->email ) ) ) {
+		if ( $staff && is_email( $staff ) && strtolower( $staff ) !== strtolower( $email ) ) {
 			$body  = '<p>' . sprintf(
 				/* translators: 1: sender name, 2: sender email */
-				esc_html__( '%1$s (%2$s) submitted a service request.', 'es-care-portal' ),
-				esc_html( $user ? $user->display_name : '' ),
-				esc_html( $user ? $user->email : '' )
+				esc_html__( '%1$s (%2$s) sent a contact message.', 'es-care-portal' ),
+				esc_html( $name ),
+				esc_html( $email )
 			) . '</p>';
 			$body .= '<p><strong>' . esc_html__( 'Subject:', 'es-care-portal' ) . '</strong> ' . esc_html( $subject ) . '</p>';
 			$body .= '<p><strong>' . esc_html__( 'Message:', 'es-care-portal' ) . '</strong><br>' . nl2br( esc_html( $message ) ) . '</p>';
 
-			wp_mail(
+			self::send(
 				$staff,
 				sprintf(
 					/* translators: %s: request subject */
-					__( 'Service request: %s', 'es-care-portal' ),
+					__( 'Contact message: %s', 'es-care-portal' ),
 					$subject
 				),
-				self::wrap( __( 'New service request', 'es-care-portal' ), $body ),
+				self::wrap( __( 'New contact message', 'es-care-portal' ), $body ),
 				self::headers()
 			);
 		}
+	}
+
+	/**
+	 * Confirm a service request to its sender and notify staff.
+	 *
+	 * @param object $user    Portal user.
+	 * @param string $subject Request subject.
+	 * @param string $message Request message.
+	 */
+	public static function service_request_received( $user, $subject, $message ) {
+		$name  = $user && ! empty( $user->display_name ) ? $user->display_name : '';
+		$email = $user && ! empty( $user->email ) ? $user->email : '';
+
+		if ( $user && empty( $name ) ) {
+			$name = ! empty( $user->first_name ) ? $user->first_name : '';
+		}
+
+		self::contact_received( $name, $email, $subject, $message );
 	}
 
 	/**
@@ -421,7 +551,7 @@ class ESC_Portal_Emails {
 		$body   .= '<strong>' . esc_html__( 'Result:', 'es-care-portal' ) . '</strong> ' . esc_html( $outcome ) . '</p>';
 		$body   .= '<p><a href="' . esc_url( ESC_Portal_Helpers::dashboard_url( 'results' ) ) . '">' . esc_html__( 'View assessment results', 'es-care-portal' ) . '</a></p>';
 
-		wp_mail(
+		self::send(
 			$user->email,
 			sprintf(
 				/* translators: %s: assessment title */
@@ -453,12 +583,12 @@ class ESC_Portal_Emails {
 		) . '</p>';
 		$body .= '<p>' . ( $updated
 			? esc_html__( 'Your job listing update was received and saved.', 'es-care-portal' )
-			: esc_html__( 'Your job listing submission was received and published.', 'es-care-portal' )
+			: esc_html__( 'Your job listing was submitted for administrator review. It will appear publicly after it is approved.', 'es-care-portal' )
 		) . '</p>';
 		$body .= '<p><strong>' . esc_html__( 'Job:', 'es-care-portal' ) . '</strong> ' . esc_html( $title ) . '</p>';
 		$body .= '<p><a href="' . esc_url( get_permalink( $job_id ) ) . '">' . esc_html__( 'View job listing', 'es-care-portal' ) . '</a></p>';
 
-		wp_mail(
+		self::send(
 			$user->email,
 			sprintf(
 				/* translators: %s: job title */
@@ -507,7 +637,7 @@ class ESC_Portal_Emails {
 		) . '</p>';
 		$body .= '<p><a href="' . esc_url( ESC_Portal_Helpers::get_page_url( 'dashboard' ) ) . '">' . esc_html__( 'View your dashboard', 'es-care-portal' ) . '</a></p>';
 
-		wp_mail(
+		self::send(
 			$snap['email'],
 			sprintf(
 				/* translators: %s: job title */
@@ -515,6 +645,160 @@ class ESC_Portal_Emails {
 				$job
 			),
 			self::wrap( __( 'Application update', 'es-care-portal' ), $body ),
+			self::headers()
+		);
+	}
+
+	/**
+	 * Single-use employer email verification.
+	 *
+	 * @param object $user  User.
+	 * @param string $token Raw token.
+	 */
+	public static function verify_email( $user, $token ) {
+		$link = add_query_arg(
+			array(
+				'action' => 'esc_verify_email',
+				'uid'    => (int) $user->id,
+				'token'  => $token,
+			),
+			admin_url( 'admin-post.php' )
+		);
+
+		$body  = '<p>' . sprintf(
+			esc_html__( 'Hello %s,', 'es-care-portal' ),
+			esc_html( $user->first_name ? $user->first_name : $user->display_name )
+		) . '</p>';
+		$body .= '<p>' . esc_html__( 'Confirm this email address to continue employer registration. The link expires in 24 hours.', 'es-care-portal' ) . '</p>';
+		$body .= '<p><a href="' . esc_url( $link ) . '">' . esc_html__( 'Verify email address', 'es-care-portal' ) . '</a></p>';
+
+		self::send(
+			$user->email,
+			__( 'Verify your employer email', 'es-care-portal' ),
+			self::wrap( __( 'Verify your email', 'es-care-portal' ), $body ),
+			self::headers()
+		);
+	}
+
+	/**
+	 * Notify staff that an employer is waiting for approval.
+	 *
+	 * @param object $user User.
+	 */
+	public static function employer_pending_admin( $user ) {
+		$settings = ESC_Portal_Helpers::get_settings();
+		$staff    = isset( $settings['notification_email'] ) ? $settings['notification_email'] : '';
+
+		if ( ! $staff || ! is_email( $staff ) ) {
+			return;
+		}
+
+		$body  = '<p>' . sprintf(
+			esc_html__( '%1$s (%2$s) verified an employer account for %3$s and is waiting for approval.', 'es-care-portal' ),
+			esc_html( $user->display_name ),
+			esc_html( $user->email ),
+			esc_html( $user->company_name )
+		) . '</p>';
+		$body .= '<p><a href="' . esc_url( ESC_Portal_Helpers::dashboard_url( 'users' ) ) . '">' . esc_html__( 'Review dashboard users', 'es-care-portal' ) . '</a></p>';
+
+		self::send(
+			$staff,
+			__( 'Employer account awaiting approval', 'es-care-portal' ),
+			self::wrap( __( 'Employer approval needed', 'es-care-portal' ), $body ),
+			self::headers()
+		);
+	}
+
+	/**
+	 * @param object $user   User.
+	 * @param string $status approved|rejected.
+	 */
+	public static function employer_decision( $user, $status ) {
+		if ( ! $user || ! is_email( $user->email ) ) {
+			return;
+		}
+
+		$approved = 'approved' === $status;
+		$body     = '<p>' . sprintf(
+			esc_html__( 'Hello %s,', 'es-care-portal' ),
+			esc_html( $user->first_name ? $user->first_name : $user->display_name )
+		) . '</p>';
+		$body    .= '<p>' . ( $approved
+			? esc_html__( 'Your employer account has been approved. You can sign in and submit jobs for review.', 'es-care-portal' )
+			: esc_html__( 'Your employer account was not approved. Contact ES Care Services if you believe this is a mistake.', 'es-care-portal' )
+		) . '</p>';
+
+		if ( $approved ) {
+			$body .= '<p><a href="' . esc_url( ESC_Portal_Helpers::get_page_url( 'login' ) ) . '">' . esc_html__( 'Sign in', 'es-care-portal' ) . '</a></p>';
+		}
+
+		self::send(
+			$user->email,
+			$approved ? __( 'Employer account approved', 'es-care-portal' ) : __( 'Employer account update', 'es-care-portal' ),
+			self::wrap( $approved ? __( 'Account approved', 'es-care-portal' ) : __( 'Account update', 'es-care-portal' ), $body ),
+			self::headers()
+		);
+	}
+
+	/**
+	 * @param object $user   Employer.
+	 * @param int    $job_id Job ID.
+	 * @param string $status approved|rejected.
+	 */
+	public static function job_moderated( $user, $job_id, $status ) {
+		if ( ! $user || ! is_email( $user->email ) ) {
+			return;
+		}
+
+		$title    = get_the_title( $job_id );
+		$approved = 'approved' === $status;
+		$body     = '<p>' . sprintf(
+			esc_html__( 'Hello %s,', 'es-care-portal' ),
+			esc_html( $user->first_name ? $user->first_name : $user->display_name )
+		) . '</p>';
+		$body    .= '<p>' . ( $approved
+			? sprintf( esc_html__( 'Your job listing “%s” is now published.', 'es-care-portal' ), esc_html( $title ) )
+			: sprintf( esc_html__( 'Your job listing “%s” was not approved.', 'es-care-portal' ), esc_html( $title ) )
+		) . '</p>';
+
+		if ( $approved ) {
+			$body .= '<p><a href="' . esc_url( get_permalink( $job_id ) ) . '">' . esc_html__( 'View job listing', 'es-care-portal' ) . '</a></p>';
+		}
+
+		self::send(
+			$user->email,
+			$approved ? __( 'Job listing approved', 'es-care-portal' ) : __( 'Job listing update', 'es-care-portal' ),
+			self::wrap( $approved ? __( 'Job approved', 'es-care-portal' ) : __( 'Job update', 'es-care-portal' ), $body ),
+			self::headers()
+		);
+	}
+
+	/**
+	 * Notify staff a new job is waiting for moderation.
+	 *
+	 * @param object $user   Employer.
+	 * @param int    $job_id Job ID.
+	 */
+	public static function job_pending_review( $user, $job_id ) {
+		$settings = ESC_Portal_Helpers::get_settings();
+		$staff    = isset( $settings['notification_email'] ) ? $settings['notification_email'] : '';
+
+		if ( ! $staff || ! is_email( $staff ) ) {
+			return;
+		}
+
+		$title = get_the_title( $job_id );
+		$body  = '<p>' . sprintf(
+			esc_html__( '%1$s submitted “%2$s” for review.', 'es-care-portal' ),
+			esc_html( $user ? $user->display_name : '' ),
+			esc_html( $title )
+		) . '</p>';
+		$body .= '<p><a href="' . esc_url( ESC_Portal_Helpers::dashboard_url( 'jobs' ) ) . '">' . esc_html__( 'Review jobs', 'es-care-portal' ) . '</a></p>';
+
+		self::send(
+			$staff,
+			sprintf( __( 'Job listing awaiting review: %s', 'es-care-portal' ), $title ),
+			self::wrap( __( 'Job moderation needed', 'es-care-portal' ), $body ),
 			self::headers()
 		);
 	}
