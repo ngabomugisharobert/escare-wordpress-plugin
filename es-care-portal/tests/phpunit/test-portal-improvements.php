@@ -63,10 +63,16 @@ class ESC_Portal_Improvement_Tests extends WP_UnitTestCase {
 
 	public function test_rate_limit_actions_are_named() {
 		$limits = ESC_Portal_Rate_Limit::limits();
-		foreach ( array( 'register', 'job_publish', 'apply', 'request', 'assessment', 'verify_resend' ) as $action ) {
+		foreach ( array( 'register', 'job_publish', 'apply', 'request', 'assessment', 'verify_resend', 'contact', 'lost_password' ) as $action ) {
 			$this->assertArrayHasKey( $action, $limits );
 		}
 	}
+
+	public function test_public_registration_cannot_create_portal_admin() {
+		$this->assertNotContains( ESC_Portal_Users::ROLE_ADMIN, ESC_Portal_Users::public_roles() );
+	}
+
+	public function test_private_storage_is_outside_uploads_by_default() {
 
 	public function test_private_storage_is_outside_uploads_by_default() {
 		$dir = ESC_Portal_Uploads::directory();

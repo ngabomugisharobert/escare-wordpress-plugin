@@ -745,7 +745,7 @@ class ESC_Portal_Shortcodes {
 		$html  = '<div class="esc-portal-wrap">';
 		$html .= ESC_Portal_Helpers::render_query_notice();
 		$html .= '<div class="esc-card"><h2>' . esc_html__( 'Sign in to continue', 'es-care-portal' ) . '</h2>';
-		$html .= '<p>' . esc_html__( 'Create a job seeker or employer account. This is separate from the WordPress site login.', 'es-care-portal' ) . '</p>';
+		$html .= '<p>' . esc_html__( 'Access on-demand staffing, 24/7 shift coverage, and openings for vetted RNs, LPNs, and CNAs — for facilities and caregivers.', 'es-care-portal' ) . '</p>';
 		$html .= '<p class="esc-actions"><a class="esc-button" href="' . esc_url( ESC_Portal_Helpers::get_page_url( 'login', $login_args ) ) . '">' . esc_html__( 'Sign in', 'es-care-portal' ) . '</a> ';
 		$html .= '<a class="esc-button esc-button--ghost" href="' . esc_url( ESC_Portal_Helpers::get_page_url( 'register', $reg_args ) ) . '">' . esc_html__( 'Create an account', 'es-care-portal' ) . '</a></p>';
 		$html .= '</div></div>';

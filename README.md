@@ -8,6 +8,10 @@ See **[es-care-portal/README.md](es-care-portal/README.md)** for install, pages,
 
 Copy `es-care-portal/` into `wp-content/plugins/` (or keep it there in this repo) and activate it in WordPress.
 
+## Public theme
+
+**[es-care-theme/](es-care-theme/)** is the public marketing site. Copy it to `wp-content/themes/es-care` and activate it after the portal plugin. Apply Now, login, register, careers, and contact all link into the existing portal. Do not use this theme to replace portal dashboards.
+
 ## Requirements
 
 - WordPress 6.0 or later
