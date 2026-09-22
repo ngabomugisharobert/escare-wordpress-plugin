@@ -4,7 +4,7 @@ WordPress plugin for **ES Care Services LLC**. It runs a job-seeker and employer
 
 Requires WordPress 6.0+ and PHP 7.4+. Elementor is optional.
 
-Current version: **2.0.7**
+Current version: **2.0.11**
 
 ## What it does
 

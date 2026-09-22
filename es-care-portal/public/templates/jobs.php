@@ -16,6 +16,9 @@
 defined( 'ABSPATH' ) || exit;
 
 $categories = ( ! is_wp_error( $categories ) && is_array( $categories ) ) ? $categories : array();
+$portal_user = class_exists( 'ESC_Portal_Auth' ) ? ESC_Portal_Auth::current_user() : null;
+$can_apply   = ! $portal_user || ( class_exists( 'ESC_Portal_Users' ) && ESC_Portal_Users::is_seeker( $portal_user ) );
+$dashboard   = class_exists( 'ESC_Portal_Helpers' ) ? ESC_Portal_Helpers::get_page_url( 'dashboard' ) : home_url( '/portal-dashboard/' );
 ?>
 <div class="esc-portal-wrap">
 	<?php include ESC_PORTAL_DIR . 'public/templates/partials/account-nav.php'; ?>
@@ -85,8 +88,10 @@ $categories = ( ! is_wp_error( $categories ) && is_array( $categories ) ) ? $cat
 							<p><?php echo esc_html( get_the_excerpt() ); ?></p>
 						<?php endif; ?>
 					</div>
-					<?php if ( $open ) : ?>
+					<?php if ( $open && $can_apply ) : ?>
 						<a class="esc-button" href="<?php echo esc_url( ESC_Portal_Apply::apply_url( $job_id ) ); ?>"><?php esc_html_e( 'Apply', 'es-care-portal' ); ?></a>
+					<?php elseif ( $open && $portal_user ) : ?>
+						<a class="esc-button" href="<?php echo esc_url( $dashboard ); ?>"><?php esc_html_e( 'Dashboard', 'es-care-portal' ); ?></a>
 					<?php endif; ?>
 				</li>
 				<?php

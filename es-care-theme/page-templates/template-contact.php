@@ -15,9 +15,7 @@ get_header();
 $email    = escare_email();
 $phone    = escare_phone();
 $hours    = escare_hours();
-$address  = escare_address();
-$ubi      = escare_ubi();
-$pool_ref = escare_pool_ref();
+$address = escare_address();
 ?>
 <header class="escare-page-hero">
 	<div class="escare-wrap">
@@ -51,18 +49,6 @@ $pool_ref = escare_pool_ref();
 					<li>
 						<strong><?php esc_html_e( 'Location', 'es-care' ); ?></strong><br>
 						<?php echo nl2br( esc_html( $address ) ); ?>
-					</li>
-				<?php endif; ?>
-				<?php if ( $ubi ) : ?>
-					<li>
-						<strong><?php esc_html_e( 'WA UBI', 'es-care' ); ?></strong><br>
-						<?php echo esc_html( $ubi ); ?>
-					</li>
-				<?php endif; ?>
-				<?php if ( $pool_ref ) : ?>
-					<li>
-						<strong><?php esc_html_e( 'WA Pool Ref', 'es-care' ); ?></strong><br>
-						<?php echo esc_html( $pool_ref ); ?>
 					</li>
 				<?php endif; ?>
 			</ul>

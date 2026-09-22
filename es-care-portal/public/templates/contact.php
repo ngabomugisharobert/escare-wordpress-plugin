@@ -4,13 +4,30 @@
  *
  * @package ESC_Portal
  *
- * @var object|null $user Current portal user, if any.
+ * @var object|null          $user   Current portal user, if any.
+ * @var array<string,string> $sticky Previous submission, if any.
  */
 
 defined( 'ABSPATH' ) || exit;
 
-$name  = $user && ! empty( $user->display_name ) ? $user->display_name : '';
-$email = $user && ! empty( $user->email ) ? $user->email : '';
+$sticky  = isset( $sticky ) && is_array( $sticky ) ? $sticky : array();
+$name    = $user && ! empty( $user->display_name ) ? $user->display_name : '';
+$email   = $user && ! empty( $user->email ) ? $user->email : '';
+$subject = '';
+$message = '';
+
+if ( ! empty( $sticky['name'] ) ) {
+	$name = $sticky['name'];
+}
+if ( ! empty( $sticky['email'] ) ) {
+	$email = $sticky['email'];
+}
+if ( ! empty( $sticky['subject'] ) ) {
+	$subject = $sticky['subject'];
+}
+if ( ! empty( $sticky['message'] ) ) {
+	$message = $sticky['message'];
+}
 ?>
 <div class="esc-portal-wrap esc-portal-wrap--contact">
 	<?php include ESC_PORTAL_DIR . 'public/templates/partials/account-nav.php'; ?>
@@ -36,11 +53,11 @@ $email = $user && ! empty( $user->email ) ? $user->email : '';
 			</p>
 			<p class="esc-field">
 				<label for="esc_subject"><?php esc_html_e( 'Subject', 'es-care-portal' ); ?></label>
-				<input type="text" id="esc_subject" name="esc_subject" required maxlength="190">
+				<input type="text" id="esc_subject" name="esc_subject" value="<?php echo esc_attr( $subject ); ?>" required maxlength="190">
 			</p>
 			<p class="esc-field">
 				<label for="esc_message"><?php esc_html_e( 'Message', 'es-care-portal' ); ?></label>
-				<textarea id="esc_message" name="esc_message" rows="6" required maxlength="4000"></textarea>
+				<textarea id="esc_message" name="esc_message" rows="6" required maxlength="4000"><?php echo esc_textarea( $message ); ?></textarea>
 			</p>
 			<p><button type="submit" class="esc-button"><?php esc_html_e( 'Send message', 'es-care-portal' ); ?></button></p>
 		</form>

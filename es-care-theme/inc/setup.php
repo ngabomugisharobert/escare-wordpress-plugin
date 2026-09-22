@@ -15,6 +15,7 @@ add_filter( 'body_class', 'escare_body_class' );
 add_filter( 'nav_menu_css_class', 'escare_menu_item_classes', 10, 2 );
 add_filter( 'nav_menu_link_attributes', 'escare_menu_link_attrs', 10, 2 );
 add_filter( 'template_include', 'escare_contact_template', 999 );
+add_action( 'template_redirect', 'escare_block_cross_role_pages', 1 );
 
 /**
  * Theme supports.
@@ -184,6 +185,23 @@ function escare_fallback_primary_menu() {
 		);
 	}
 	echo '</ul>';
+}
+
+/**
+ * Employers cannot use job-seeker pages, and job seekers cannot use employer pages.
+ */
+function escare_block_cross_role_pages() {
+	$block = escare_cross_role_block();
+	if ( ! $block ) {
+		return;
+	}
+
+	status_header( 200 );
+	nocache_headers();
+	get_header();
+	include ESCARE_THEME_DIR . '/page-templates/partial-role-blocked.php';
+	get_footer();
+	exit;
 }
 
 /**

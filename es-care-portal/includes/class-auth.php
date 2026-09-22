@@ -181,10 +181,6 @@ class ESC_Portal_Auth {
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'nonce', 'error' );
 		}
 
-		if ( ! ESC_Portal_Rate_Limit::allow( 'register' ) ) {
-			ESC_Portal_Rate_Limit::reject();
-		}
-
 		if ( self::is_logged_in() ) {
 			wp_safe_redirect( ESC_Portal_Helpers::get_page_url( 'dashboard' ) );
 			exit;
@@ -199,29 +195,41 @@ class ESC_Portal_Auth {
 		$role     = isset( $_POST['esc_role'] ) ? sanitize_key( wp_unslash( $_POST['esc_role'] ) ) : '';
 		$company  = isset( $_POST['esc_company_name'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_company_name'] ) ) : '';
 		$redirect = ESC_Portal_Helpers::requested_redirect();
+		$sticky   = array(
+			'first_name'   => $first,
+			'last_name'    => $last,
+			'email'        => $email,
+			'phone'        => $phone,
+			'role'         => $role,
+			'company_name' => $company,
+		);
+
+		if ( ! ESC_Portal_Rate_Limit::allow( 'register' ) ) {
+			self::fail_register( $fallback, 'rate-limited', $sticky );
+		}
 
 		if ( ! in_array( $role, ESC_Portal_Users::public_roles(), true ) ) {
-			ESC_Portal_Helpers::redirect_notice( $fallback, 'role-required', 'error' );
+			self::fail_register( $fallback, 'role-required', $sticky );
 		}
 
 		if ( ! $first || ! $last || ! $email || ! $phone || ! $password ) {
-			ESC_Portal_Helpers::redirect_notice( $fallback, 'required', 'error' );
+			self::fail_register( $fallback, 'required', $sticky );
 		}
 
 		if ( ESC_Portal_Users::ROLE_EMPLOYER === $role && ! $company ) {
-			ESC_Portal_Helpers::redirect_notice( $fallback, 'company-required', 'error' );
+			self::fail_register( $fallback, 'company-required', $sticky );
 		}
 
 		if ( ! is_email( $email ) ) {
-			ESC_Portal_Helpers::redirect_notice( $fallback, 'invalid-email', 'error' );
+			self::fail_register( $fallback, 'invalid-email', $sticky );
 		}
 
 		if ( $password !== $confirm ) {
-			ESC_Portal_Helpers::redirect_notice( $fallback, 'password-mismatch', 'error' );
+			self::fail_register( $fallback, 'password-mismatch', $sticky );
 		}
 
 		if ( ! ESC_Portal_Users::is_strong_password( $password ) ) {
-			ESC_Portal_Helpers::redirect_notice( $fallback, 'weak-password', 'error' );
+			self::fail_register( $fallback, 'weak-password', $sticky );
 		}
 
 		$status = ESC_Portal_Users::ROLE_EMPLOYER === $role
@@ -243,8 +251,10 @@ class ESC_Portal_Auth {
 
 		if ( is_wp_error( $user_id ) ) {
 			$code = 'esc_exists' === $user_id->get_error_code() ? 'email-exists' : 'required';
-			ESC_Portal_Helpers::redirect_notice( $fallback, $code, 'error' );
+			self::fail_register( $fallback, $code, $sticky );
 		}
+
+		ESC_Portal_Helpers::forget_form();
 
 		if ( ESC_Portal_Users::ROLE_EMPLOYER === $role ) {
 			self::issue_verification( $user_id );
@@ -256,6 +266,18 @@ class ESC_Portal_Auth {
 
 		$dest = $redirect ? $redirect : ESC_Portal_Helpers::get_page_url( 'dashboard' );
 		ESC_Portal_Helpers::redirect_notice( $dest, 'registered', 'success' );
+	}
+
+	/**
+	 * Redirect back to register with submitted fields restored (never passwords).
+	 *
+	 * @param string               $url    Register URL.
+	 * @param string               $code   Notice code.
+	 * @param array<string,string> $sticky Non-secret fields.
+	 */
+	private static function fail_register( $url, $code, $sticky ) {
+		ESC_Portal_Helpers::remember_form( 'register', $sticky );
+		ESC_Portal_Helpers::redirect_notice( $url, $code, 'error' );
 	}
 
 	/**
@@ -274,6 +296,7 @@ class ESC_Portal_Auth {
 		$redirect = ESC_Portal_Helpers::requested_redirect();
 
 		if ( self::is_locked( $email ) ) {
+			ESC_Portal_Helpers::remember_form( 'login', array( 'email' => $email ) );
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'locked-out', 'error' );
 		}
 
@@ -287,9 +310,11 @@ class ESC_Portal_Auth {
 				'esc_pending_admin' => 'pending-admin',
 			);
 			$code = isset( $map[ $user->get_error_code() ] ) ? $map[ $user->get_error_code() ] : 'invalid-login';
+			ESC_Portal_Helpers::remember_form( 'login', array( 'email' => $email ) );
 			ESC_Portal_Helpers::redirect_notice( $fallback, $code, 'error' );
 		}
 
+		ESC_Portal_Helpers::forget_form();
 		self::clear_failures( $email );
 		self::login_user( $user->id, $remember );
 

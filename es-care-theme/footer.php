@@ -10,9 +10,8 @@ defined( 'ABSPATH' ) || exit;
 $email    = escare_email();
 $phone    = escare_phone();
 $hours    = escare_hours();
-$address  = escare_address();
-$ubi      = escare_ubi();
-$pool_ref = escare_pool_ref();
+$address = escare_address();
+$user    = escare_portal_user();
 ?>
 </main>
 
@@ -40,10 +39,17 @@ $pool_ref = escare_pool_ref();
 		<div>
 			<h2 class="escare-footer-heading"><?php esc_html_e( 'Portal', 'es-care' ); ?></h2>
 			<ul class="escare-footer-links">
-				<li><a href="<?php echo esc_url( escare_portal_url( 'login' ) ); ?>"><?php esc_html_e( 'Sign in', 'es-care' ); ?></a></li>
-				<li><a href="<?php echo esc_url( escare_portal_url( 'register' ) ); ?>"><?php esc_html_e( 'Register', 'es-care' ); ?></a></li>
-				<li><a href="<?php echo esc_url( escare_portal_url( 'careers' ) ); ?>"><?php esc_html_e( 'Careers', 'es-care' ); ?></a></li>
-				<li><a href="<?php echo esc_url( escare_portal_url( 'contact' ) ); ?>"><?php esc_html_e( 'Contact Us', 'es-care' ); ?></a></li>
+				<?php if ( $user ) : ?>
+					<li><a href="<?php echo esc_url( escare_portal_url( 'dashboard' ) ); ?>"><?php esc_html_e( 'Dashboard', 'es-care' ); ?></a></li>
+					<li><a href="<?php echo esc_url( escare_portal_url( 'careers' ) ); ?>"><?php esc_html_e( 'Careers', 'es-care' ); ?></a></li>
+					<li><a href="<?php echo esc_url( escare_portal_url( 'contact' ) ); ?>"><?php esc_html_e( 'Contact Us', 'es-care' ); ?></a></li>
+					<li><a href="<?php echo esc_url( escare_portal_logout_url() ); ?>"><?php esc_html_e( 'Sign out', 'es-care' ); ?></a></li>
+				<?php else : ?>
+					<li><a href="<?php echo esc_url( escare_portal_url( 'login' ) ); ?>"><?php esc_html_e( 'Sign in', 'es-care' ); ?></a></li>
+					<li><a href="<?php echo esc_url( escare_portal_url( 'register' ) ); ?>"><?php esc_html_e( 'Register', 'es-care' ); ?></a></li>
+					<li><a href="<?php echo esc_url( escare_portal_url( 'careers' ) ); ?>"><?php esc_html_e( 'Careers', 'es-care' ); ?></a></li>
+					<li><a href="<?php echo esc_url( escare_portal_url( 'contact' ) ); ?>"><?php esc_html_e( 'Contact Us', 'es-care' ); ?></a></li>
+				<?php endif; ?>
 			</ul>
 		</div>
 		<div>
@@ -58,12 +64,6 @@ $pool_ref = escare_pool_ref();
 				<?php endif; ?>
 				<?php if ( $address ) : ?>
 					<li><?php echo nl2br( esc_html( $address ) ); ?></li>
-				<?php endif; ?>
-				<?php if ( $ubi ) : ?>
-					<li><?php echo esc_html( sprintf( __( 'WA UBI: %s', 'es-care' ), $ubi ) ); ?></li>
-				<?php endif; ?>
-				<?php if ( $pool_ref ) : ?>
-					<li><?php echo esc_html( sprintf( __( 'WA Pool Ref: %s', 'es-care' ), $pool_ref ) ); ?></li>
 				<?php endif; ?>
 			</ul>
 		</div>

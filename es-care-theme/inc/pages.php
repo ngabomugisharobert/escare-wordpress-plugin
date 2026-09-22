@@ -54,12 +54,13 @@ function escare_on_activate() {
  * Fill empty or leftover placeholder contact fields with confirmed business details.
  */
 function escare_seed_contact_defaults() {
+	remove_theme_mod( 'escare_ubi' );
+	remove_theme_mod( 'escare_pool_ref' );
+
 	$defaults = array(
-		'escare_phone'    => '360-742-8095',
-		'escare_hours'    => '24/7 shift coverage',
-		'escare_address'  => "3917 Boulevard Rd SE\nOlympia, WA 98501",
-		'escare_ubi'      => '605-397-045',
-		'escare_pool_ref' => 'NPOL.NR.70152565',
+		'escare_phone'   => '360-742-8095',
+		'escare_hours'   => '24/7 shift coverage',
+		'escare_address' => "3917 Boulevard Rd SE\nOlympia, WA 98501",
 	);
 
 	$placeholders = array(

@@ -541,6 +541,15 @@ class ESC_Portal_Forms {
 		$account = $email ? $email : ( $user ? (string) $user->id : '' );
 
 		if ( ! ESC_Portal_Rate_Limit::allow( 'contact', $account ) ) {
+			ESC_Portal_Helpers::remember_form(
+				'contact',
+				array(
+					'name'    => $name,
+					'email'   => $email,
+					'subject' => $subject,
+					'message' => $message,
+				)
+			);
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'rate-limited', 'error' );
 		}
 
@@ -554,13 +563,32 @@ class ESC_Portal_Forms {
 		}
 
 		if ( ! $name || ! is_email( $email ) || ! $subject || ! $message || strlen( $message ) > 4000 ) {
+			ESC_Portal_Helpers::remember_form(
+				'contact',
+				array(
+					'name'    => $name,
+					'email'   => $email,
+					'subject' => $subject,
+					'message' => $message,
+				)
+			);
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'required', 'error' );
 		}
 
 		if ( ! self::save_request( $user ? (int) $user->id : 0, $name, $email, $subject, $message ) ) {
+			ESC_Portal_Helpers::remember_form(
+				'contact',
+				array(
+					'name'    => $name,
+					'email'   => $email,
+					'subject' => $subject,
+					'message' => $message,
+				)
+			);
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'save-failed', 'error' );
 		}
 
+		ESC_Portal_Helpers::forget_form();
 		ESC_Portal_Emails::contact_received( $name, $email, $subject, $message );
 		ESC_Portal_Helpers::redirect_notice( $fallback, 'contact-sent', 'success' );
 	}

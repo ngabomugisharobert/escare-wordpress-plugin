@@ -8,16 +8,26 @@
 defined( 'ABSPATH' ) || exit;
 
 get_header();
+
+$user     = escare_portal_user();
+$is_admin = $user && class_exists( 'ESC_Portal_Users' ) && ESC_Portal_Users::is_admin( $user );
+$is_emp   = $user && class_exists( 'ESC_Portal_Users' ) && ESC_Portal_Users::is_employer( $user );
+$is_seek  = $user && class_exists( 'ESC_Portal_Users' ) && ESC_Portal_Users::is_seeker( $user );
 ?>
 <section class="escare-hero" aria-label="<?php esc_attr_e( 'Introduction', 'es-care' ); ?>">
 	<div class="escare-hero-media" aria-hidden="true"></div>
 	<div class="escare-hero-copy">
 		<p class="escare-hero-brand">E&amp;S Care Services</p>
-		<h1 class="escare-hero-title"><?php esc_html_e( 'Staffing that keeps care moving', 'es-care' ); ?></h1>
+		<h1 class="escare-hero-title"><?php esc_html_e( 'Care you can trust', 'es-care' ); ?></h1>
 		<p class="escare-hero-lede"><?php esc_html_e( 'We connect healthcare facilities with screened professionals, and help caregivers find work that fits their skills and schedule.', 'es-care' ); ?></p>
 		<div class="escare-hero-actions">
-			<a class="escare-btn escare-btn--solid" href="<?php echo esc_url( escare_portal_url( 'register' ) ); ?>"><?php esc_html_e( 'Apply now', 'es-care' ); ?></a>
-			<a class="escare-btn escare-btn--light" href="<?php echo esc_url( escare_portal_url( 'contact' ) ); ?>"><?php esc_html_e( 'Request staffing', 'es-care' ); ?></a>
+			<?php if ( $user ) : ?>
+				<a class="escare-btn escare-btn--solid" href="<?php echo esc_url( escare_portal_url( 'dashboard' ) ); ?>"><?php esc_html_e( 'Go to dashboard', 'es-care' ); ?></a>
+				<a class="escare-btn escare-btn--light" href="<?php echo esc_url( escare_portal_url( 'contact' ) ); ?>"><?php esc_html_e( 'Request staffing', 'es-care' ); ?></a>
+			<?php else : ?>
+				<a class="escare-btn escare-btn--solid" href="<?php echo esc_url( escare_portal_url( 'register' ) ); ?>"><?php esc_html_e( 'Apply now', 'es-care' ); ?></a>
+				<a class="escare-btn escare-btn--light" href="<?php echo esc_url( escare_portal_url( 'contact' ) ); ?>"><?php esc_html_e( 'Request staffing', 'es-care' ); ?></a>
+			<?php endif; ?>
 		</div>
 	</div>
 </section>
@@ -86,9 +96,16 @@ get_header();
 			<h2><?php esc_html_e( 'Fill shifts without slowing care', 'es-care' ); ?></h2>
 			<p><?php esc_html_e( 'Hospitals, nursing homes, assisted living, rehab, and home-care programs can request temp, per diem, contract, or longer-term support — or open an employer portal account to post jobs.', 'es-care' ); ?></p>
 			<div class="escare-split-actions">
-				<a class="escare-btn escare-btn--light" href="<?php echo esc_url( escare_portal_url( 'login' ) ); ?>"><?php esc_html_e( 'Employer login', 'es-care' ); ?></a>
-				<a class="escare-btn escare-btn--ghost-light" href="<?php echo esc_url( escare_portal_url( 'register' ) ); ?>"><?php esc_html_e( 'Employer registration', 'es-care' ); ?></a>
-				<a class="escare-btn escare-btn--ghost-light" href="<?php echo esc_url( escare_portal_url( 'contact' ) ); ?>"><?php esc_html_e( 'Request staffing', 'es-care' ); ?></a>
+				<?php if ( $is_admin || $is_emp ) : ?>
+					<a class="escare-btn escare-btn--light" href="<?php echo esc_url( escare_portal_url( 'dashboard' ) ); ?>"><?php esc_html_e( 'Go to dashboard', 'es-care' ); ?></a>
+					<a class="escare-btn escare-btn--ghost-light" href="<?php echo esc_url( escare_portal_url( 'contact' ) ); ?>"><?php esc_html_e( 'Request staffing', 'es-care' ); ?></a>
+				<?php elseif ( $is_seek ) : ?>
+					<a class="escare-btn escare-btn--ghost-light" href="<?php echo esc_url( escare_portal_url( 'contact' ) ); ?>"><?php esc_html_e( 'Request staffing', 'es-care' ); ?></a>
+				<?php else : ?>
+					<a class="escare-btn escare-btn--light" href="<?php echo esc_url( escare_portal_url( 'login' ) ); ?>"><?php esc_html_e( 'Employer login', 'es-care' ); ?></a>
+					<a class="escare-btn escare-btn--ghost-light" href="<?php echo esc_url( escare_portal_url( 'register' ) ); ?>"><?php esc_html_e( 'Employer registration', 'es-care' ); ?></a>
+					<a class="escare-btn escare-btn--ghost-light" href="<?php echo esc_url( escare_portal_url( 'contact' ) ); ?>"><?php esc_html_e( 'Request staffing', 'es-care' ); ?></a>
+				<?php endif; ?>
 			</div>
 		</div>
 	</div>
@@ -104,9 +121,18 @@ get_header();
 			<h2><?php esc_html_e( 'Find work that fits your license and life', 'es-care' ); ?></h2>
 			<p><?php esc_html_e( 'CNAs, HHAs, LPNs, RNs, and caregivers can register, browse careers, and apply through the portal — including full-time, part-time, PRN, contract, weekend, night, and live-in roles as they open.', 'es-care' ); ?></p>
 			<div class="escare-split-actions">
-				<a class="escare-btn escare-btn--solid" href="<?php echo esc_url( escare_portal_url( 'login' ) ); ?>"><?php esc_html_e( 'Job seeker login', 'es-care' ); ?></a>
-				<a class="escare-btn escare-btn--ghost" href="<?php echo esc_url( escare_portal_url( 'register' ) ); ?>"><?php esc_html_e( 'Job seeker registration', 'es-care' ); ?></a>
-				<a class="escare-btn escare-btn--ghost" href="<?php echo esc_url( escare_portal_url( 'careers' ) ); ?>"><?php esc_html_e( 'View openings', 'es-care' ); ?></a>
+				<?php if ( $is_admin ) : ?>
+					<a class="escare-btn escare-btn--ghost" href="<?php echo esc_url( escare_portal_url( 'careers' ) ); ?>"><?php esc_html_e( 'View openings', 'es-care' ); ?></a>
+				<?php elseif ( $is_seek ) : ?>
+					<a class="escare-btn escare-btn--solid" href="<?php echo esc_url( escare_portal_url( 'dashboard' ) ); ?>"><?php esc_html_e( 'Go to dashboard', 'es-care' ); ?></a>
+					<a class="escare-btn escare-btn--ghost" href="<?php echo esc_url( escare_portal_url( 'careers' ) ); ?>"><?php esc_html_e( 'View openings', 'es-care' ); ?></a>
+				<?php elseif ( $is_emp ) : ?>
+					<a class="escare-btn escare-btn--ghost" href="<?php echo esc_url( escare_portal_url( 'careers' ) ); ?>"><?php esc_html_e( 'View openings', 'es-care' ); ?></a>
+				<?php else : ?>
+					<a class="escare-btn escare-btn--solid" href="<?php echo esc_url( escare_portal_url( 'login' ) ); ?>"><?php esc_html_e( 'Job seeker login', 'es-care' ); ?></a>
+					<a class="escare-btn escare-btn--ghost" href="<?php echo esc_url( escare_portal_url( 'register' ) ); ?>"><?php esc_html_e( 'Job seeker registration', 'es-care' ); ?></a>
+					<a class="escare-btn escare-btn--ghost" href="<?php echo esc_url( escare_portal_url( 'careers' ) ); ?>"><?php esc_html_e( 'View openings', 'es-care' ); ?></a>
+				<?php endif; ?>
 			</div>
 		</div>
 	</div>

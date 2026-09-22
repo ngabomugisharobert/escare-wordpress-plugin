@@ -99,18 +99,28 @@
 		}
 	});
 
+	function syncRolePicker() {
+		var selected = document.querySelector('input[name="esc_role"]:checked');
+		if (!selected) {
+			return;
+		}
+		selected.dispatchEvent(new Event('change', { bubbles: true }));
+	}
+
 	if (document.readyState === 'loading') {
 		document.addEventListener('DOMContentLoaded', function () {
 			initPasswordToggles();
 			initDataTables();
 			initUserModal();
 			initMessageModal();
+			syncRolePicker();
 		});
 	} else {
 		initPasswordToggles();
 		initDataTables();
 		initUserModal();
 		initMessageModal();
+		syncRolePicker();
 	}
 
 	function initDataTables() {

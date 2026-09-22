@@ -67,6 +67,33 @@ function escare_portal_url( $slug ) {
 }
 
 /**
+ * Current ES Care Portal user, or null for guests.
+ *
+ * @return object|null
+ */
+function escare_portal_user() {
+	if ( class_exists( 'ESC_Portal_Auth' ) && method_exists( 'ESC_Portal_Auth', 'current_user' ) ) {
+		$user = ESC_Portal_Auth::current_user();
+		return $user ? $user : null;
+	}
+
+	return null;
+}
+
+/**
+ * Portal sign-out URL.
+ *
+ * @return string
+ */
+function escare_portal_logout_url() {
+	if ( class_exists( 'ESC_Portal_Auth' ) && method_exists( 'ESC_Portal_Auth', 'logout_url' ) ) {
+		return ESC_Portal_Auth::logout_url();
+	}
+
+	return escare_portal_url( 'login' );
+}
+
+/**
  * Theme-created marketing page URL.
  *
  * @param string $key Page key stored in escare_theme_pages.
@@ -143,21 +170,99 @@ function escare_address() {
 }
 
 /**
- * Washington UBI number.
+ * Last path segment of the current request.
  *
  * @return string
  */
-function escare_ubi() {
-	return escare_mod( 'escare_ubi', '605-397-045' );
+function escare_request_slug() {
+	if ( is_singular( 'page' ) ) {
+		$post = get_queried_object();
+		if ( $post && ! empty( $post->post_name ) ) {
+			return sanitize_title( $post->post_name );
+		}
+	}
+
+	$pagename = get_query_var( 'pagename' );
+	if ( ! $pagename ) {
+		$pagename = get_query_var( 'name' );
+	}
+	if ( $pagename ) {
+		$parts = explode( '/', (string) $pagename );
+		return sanitize_title( (string) end( $parts ) );
+	}
+
+	if ( empty( $_SERVER['REQUEST_URI'] ) ) {
+		return '';
+	}
+
+	$uri  = wp_unslash( $_SERVER['REQUEST_URI'] );
+	$path = wp_parse_url( $uri, PHP_URL_PATH );
+	$path = trim( (string) $path, '/' );
+	if ( '' === $path ) {
+		return '';
+	}
+
+	$parts = explode( '/', $path );
+	return sanitize_title( rawurldecode( (string) end( $parts ) ) );
 }
 
 /**
- * Washington nursing pool reference.
+ * Why this request is blocked for the signed-in portal role, if at all.
  *
- * @return string
+ * @return string employer-on-seeker|seeker-on-employer|
  */
-function escare_pool_ref() {
-	return escare_mod( 'escare_pool_ref', 'NPOL.NR.70152565' );
+function escare_cross_role_block() {
+	$user = escare_portal_user();
+	if ( ! $user || ! class_exists( 'ESC_Portal_Users' ) || ESC_Portal_Users::is_admin( $user ) ) {
+		return '';
+	}
+
+	$slug     = escare_request_slug();
+	$seeker   = in_array( $slug, array( 'job-seekers', 'job-seeker', 'apply' ), true );
+	$employer = in_array( $slug, array( 'employers', 'employer', 'post-a-job', 'post-job' ), true );
+
+	$pages = get_option( 'escare_theme_pages', array() );
+	if ( is_array( $pages ) ) {
+		if ( ! empty( $pages['job-seekers'] ) && is_page( absint( $pages['job-seekers'] ) ) ) {
+			$seeker = true;
+		}
+		if ( ! empty( $pages['employers'] ) && is_page( absint( $pages['employers'] ) ) ) {
+			$employer = true;
+		}
+	}
+
+	$view = isset( $_GET['esc_view'] ) ? sanitize_key( wp_unslash( $_GET['esc_view'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+	if ( class_exists( 'ESC_Portal_Helpers' ) ) {
+		$apply_id = ESC_Portal_Helpers::get_page_id( 'apply' );
+		$post_id  = ESC_Portal_Helpers::get_page_id( 'post-job' );
+		$dash_id  = ESC_Portal_Helpers::get_page_id( 'dashboard' );
+
+		if ( $apply_id && is_page( $apply_id ) ) {
+			$seeker = true;
+		}
+		if ( $post_id && is_page( $post_id ) ) {
+			$employer = true;
+		}
+		if ( $dash_id && is_page( $dash_id ) ) {
+			if ( in_array( $view, array( 'apply', 'assessments', 'take', 'results', 'forms' ), true ) ) {
+				$seeker = true;
+			}
+			if ( in_array( $view, array( 'jobs', 'post', 'membership' ), true ) ) {
+				$employer = true;
+			}
+		}
+	}
+
+	if ( ESC_Portal_Users::is_employer( $user ) && $seeker ) {
+		return 'employer-on-seeker';
+	}
+
+	if ( ESC_Portal_Users::is_seeker( $user ) && $employer ) {
+		return 'seeker-on-employer';
+	}
+
+	return '';
 }
 
 /**

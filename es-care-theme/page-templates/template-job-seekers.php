@@ -53,8 +53,15 @@ get_header();
 		<p><?php esc_html_e( 'Open the careers portal to continue.', 'es-care' ); ?></p>
 		<div class="escare-split-actions">
 			<a class="escare-btn escare-btn--solid" href="<?php echo esc_url( escare_portal_url( 'careers' ) ); ?>"><?php esc_html_e( 'View openings', 'es-care' ); ?></a>
-			<a class="escare-btn escare-btn--ghost" href="<?php echo esc_url( escare_portal_url( 'login' ) ); ?>"><?php esc_html_e( 'Job Seeker Login', 'es-care' ); ?></a>
-			<a class="escare-btn escare-btn--ghost" href="<?php echo esc_url( escare_portal_url( 'register' ) ); ?>"><?php esc_html_e( 'Job Seeker Registration', 'es-care' ); ?></a>
+			<?php
+			$user = escare_portal_user();
+			if ( $user ) :
+				?>
+				<a class="escare-btn escare-btn--ghost" href="<?php echo esc_url( escare_portal_url( 'dashboard' ) ); ?>"><?php esc_html_e( 'Go to dashboard', 'es-care' ); ?></a>
+			<?php else : ?>
+				<a class="escare-btn escare-btn--ghost" href="<?php echo esc_url( escare_portal_url( 'login' ) ); ?>"><?php esc_html_e( 'Job Seeker Login', 'es-care' ); ?></a>
+				<a class="escare-btn escare-btn--ghost" href="<?php echo esc_url( escare_portal_url( 'register' ) ); ?>"><?php esc_html_e( 'Job Seeker Registration', 'es-care' ); ?></a>
+			<?php endif; ?>
 		</div>
 	</div>
 </div>

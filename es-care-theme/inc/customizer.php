@@ -85,36 +85,4 @@ function escare_customize_register( $wp_customize ) {
 			'type'    => 'textarea',
 		)
 	);
-
-	$wp_customize->add_setting(
-		'escare_ubi',
-		array(
-			'default'           => '605-397-045',
-			'sanitize_callback' => 'sanitize_text_field',
-		)
-	);
-	$wp_customize->add_control(
-		'escare_ubi',
-		array(
-			'label'   => __( 'WA UBI', 'es-care' ),
-			'section' => 'escare_contact',
-			'type'    => 'text',
-		)
-	);
-
-	$wp_customize->add_setting(
-		'escare_pool_ref',
-		array(
-			'default'           => 'NPOL.NR.70152565',
-			'sanitize_callback' => 'sanitize_text_field',
-		)
-	);
-	$wp_customize->add_control(
-		'escare_pool_ref',
-		array(
-			'label'   => __( 'WA Pool Ref', 'es-care' ),
-			'section' => 'escare_contact',
-			'type'    => 'text',
-		)
-	);
 }

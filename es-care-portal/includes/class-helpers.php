@@ -570,6 +570,161 @@ class ESC_Portal_Helpers {
 		return '<div class="esc-notice esc-notice--' . esc_attr( $type ) . '" role="status">' . esc_html( $message ) . '</div>';
 	}
 
+	const FORM_COOKIE = 'esc_portal_form';
+	const FORM_TTL    = 600;
+
+	/**
+	 * Allowed sticky fields per public form.
+	 *
+	 * @param string $form Form key.
+	 * @return string[]
+	 */
+	public static function form_fields( $form ) {
+		$map = array(
+			'register' => array( 'first_name', 'last_name', 'email', 'phone', 'role', 'company_name' ),
+			'login'    => array( 'email' ),
+			'contact'  => array( 'name', 'email', 'subject', 'message' ),
+		);
+
+		return isset( $map[ $form ] ) ? $map[ $form ] : array();
+	}
+
+	/**
+	 * Keep non-password form values across a validation redirect.
+	 *
+	 * @param string               $form   Form key.
+	 * @param array<string,string> $values Submitted values.
+	 */
+	public static function remember_form( $form, $values ) {
+		$form    = sanitize_key( $form );
+		$allowed = self::form_fields( $form );
+
+		if ( ! $allowed ) {
+			return;
+		}
+
+		$clean = array();
+
+		foreach ( $allowed as $key ) {
+			if ( ! isset( $values[ $key ] ) || ! is_scalar( $values[ $key ] ) ) {
+				continue;
+			}
+
+			$value           = (string) $values[ $key ];
+			$clean[ $key ] = 'message' === $key ? sanitize_textarea_field( $value ) : sanitize_text_field( $value );
+		}
+
+		try {
+			$token = bin2hex( random_bytes( 16 ) );
+		} catch ( Exception $exception ) {
+			$token = wp_generate_password( 32, false, false );
+		}
+
+		set_transient(
+			'esc_form_' . $token,
+			array(
+				'f' => $form,
+				'v' => $clean,
+			),
+			self::FORM_TTL
+		);
+
+		self::set_form_cookie( $token, time() + self::FORM_TTL );
+	}
+
+	/**
+	 * Read sticky values for a form. Empty when missing or expired.
+	 *
+	 * @param string $form Form key.
+	 * @return array<string,string>
+	 */
+	public static function recall_form( $form ) {
+		$form = sanitize_key( $form );
+
+		if ( empty( $_COOKIE[ self::FORM_COOKIE ] ) || ! is_string( $_COOKIE[ self::FORM_COOKIE ] ) ) {
+			return array();
+		}
+
+		$token = sanitize_key( wp_unslash( $_COOKIE[ self::FORM_COOKIE ] ) );
+
+		if ( ! $token ) {
+			return array();
+		}
+
+		$data = get_transient( 'esc_form_' . $token );
+
+		if ( ! is_array( $data ) || empty( $data['f'] ) || $data['f'] !== $form ) {
+			return array();
+		}
+
+		$out    = array();
+		$values = isset( $data['v'] ) && is_array( $data['v'] ) ? $data['v'] : array();
+
+		foreach ( self::form_fields( $form ) as $key ) {
+			if ( ! isset( $values[ $key ] ) || ! is_scalar( $values[ $key ] ) ) {
+				continue;
+			}
+
+			$value       = (string) $values[ $key ];
+			$out[ $key ] = 'message' === $key ? sanitize_textarea_field( $value ) : sanitize_text_field( $value );
+		}
+
+		if ( isset( $out['email'] ) ) {
+			$out['email'] = sanitize_email( $out['email'] );
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Drop sticky form cookie and matching transient.
+	 */
+	public static function forget_form() {
+		if ( ! empty( $_COOKIE[ self::FORM_COOKIE ] ) && is_string( $_COOKIE[ self::FORM_COOKIE ] ) ) {
+			$token = sanitize_key( wp_unslash( $_COOKIE[ self::FORM_COOKIE ] ) );
+			if ( $token ) {
+				delete_transient( 'esc_form_' . $token );
+			}
+		}
+
+		if ( ! headers_sent() ) {
+			self::set_form_cookie( '', time() - YEAR_IN_SECONDS );
+		}
+
+		unset( $_COOKIE[ self::FORM_COOKIE ] );
+	}
+
+	/**
+	 * @param string $value   Cookie payload.
+	 * @param int    $expires Unix timestamp.
+	 */
+	private static function set_form_cookie( $value, $expires ) {
+		$secure = is_ssl();
+		$path   = defined( 'COOKIEPATH' ) && COOKIEPATH ? COOKIEPATH : '/';
+		$domain = defined( 'COOKIE_DOMAIN' ) ? COOKIE_DOMAIN : '';
+
+		if ( PHP_VERSION_ID >= 70300 ) {
+			setcookie(
+				self::FORM_COOKIE,
+				$value,
+				array(
+					'expires'  => $expires,
+					'path'     => $path,
+					'domain'   => $domain,
+					'secure'   => $secure,
+					'httponly' => true,
+					'samesite' => 'Lax',
+				)
+			);
+		} else {
+			setcookie( self::FORM_COOKIE, $value, $expires, $path, $domain, $secure, true );
+		}
+
+		if ( $value ) {
+			$_COOKIE[ self::FORM_COOKIE ] = $value;
+		}
+	}
+
 	/**
 	 * @param string $code Notice code.
 	 * @return string

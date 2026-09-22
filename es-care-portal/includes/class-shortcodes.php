@@ -44,6 +44,7 @@ class ESC_Portal_Shortcodes {
 			'register',
 			array(
 				'redirect_to' => $redirect,
+				'sticky'      => ESC_Portal_Helpers::recall_form( 'register' ),
 			)
 		);
 	}
@@ -66,6 +67,7 @@ class ESC_Portal_Shortcodes {
 			'login',
 			array(
 				'redirect_to' => $redirect,
+				'sticky'      => ESC_Portal_Helpers::recall_form( 'login' ),
 			)
 		);
 	}
@@ -245,7 +247,11 @@ class ESC_Portal_Shortcodes {
 		}
 
 		if ( ! ESC_Portal_Users::is_seeker() ) {
-			return '<div class="esc-portal-wrap"><p class="esc-notice esc-notice--error">' . esc_html__( 'Only job seekers can apply for positions.', 'es-care-portal' ) . '</p></div>';
+			$message = ESC_Portal_Users::is_employer()
+				? __( 'You are signed in as an employer, so you cannot access job seeker pages.', 'es-care-portal' )
+				: __( 'Only job seekers can apply for positions.', 'es-care-portal' );
+
+			return '<div class="esc-portal-wrap"><p class="esc-notice esc-notice--error">' . esc_html( $message ) . '</p><p><a class="esc-button" href="' . esc_url( ESC_Portal_Helpers::get_page_url( 'dashboard' ) ) . '">' . esc_html__( 'Go to dashboard', 'es-care-portal' ) . '</a></p></div>';
 		}
 
 		$user_id = ESC_Portal_Auth::current_user_id();
@@ -277,7 +283,7 @@ class ESC_Portal_Shortcodes {
 		$user = ESC_Portal_Auth::current_user();
 
 		if ( ! ESC_Portal_Users::is_employer( $user ) && ! ESC_Portal_Users::is_admin( $user ) ) {
-			return '<div class="esc-portal-wrap"><p class="esc-notice esc-notice--error">' . esc_html__( 'Only employers and admins can post jobs.', 'es-care-portal' ) . '</p></div>';
+			return '<div class="esc-portal-wrap"><p class="esc-notice esc-notice--error">' . esc_html__( 'You are signed in as a job seeker, so you cannot access employer pages.', 'es-care-portal' ) . '</p><p><a class="esc-button" href="' . esc_url( ESC_Portal_Helpers::get_page_url( 'dashboard' ) ) . '">' . esc_html__( 'Go to dashboard', 'es-care-portal' ) . '</a></p></div>';
 		}
 
 		$job_id = isset( $_GET['job'] ) ? absint( $_GET['job'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -333,7 +339,8 @@ class ESC_Portal_Shortcodes {
 		return ESC_Portal_Helpers::render_query_notice() . ESC_Portal_Helpers::get_template(
 			'contact',
 			array(
-				'user' => ESC_Portal_Auth::current_user(),
+				'user'   => ESC_Portal_Auth::current_user(),
+				'sticky' => ESC_Portal_Helpers::recall_form( 'contact' ),
 			)
 		);
 	}

@@ -4,10 +4,19 @@
  *
  * @package ESC_Portal
  *
- * @var string $redirect_to Redirect URL.
+ * @var string               $redirect_to Redirect URL.
+ * @var array<string,string> $sticky      Previous submission, if any.
  */
 
 defined( 'ABSPATH' ) || exit;
+
+$sticky  = isset( $sticky ) && is_array( $sticky ) ? $sticky : array();
+$role    = isset( $sticky['role'] ) ? $sticky['role'] : '';
+$first   = isset( $sticky['first_name'] ) ? $sticky['first_name'] : '';
+$last    = isset( $sticky['last_name'] ) ? $sticky['last_name'] : '';
+$email   = isset( $sticky['email'] ) ? $sticky['email'] : '';
+$phone   = isset( $sticky['phone'] ) ? $sticky['phone'] : '';
+$company = isset( $sticky['company_name'] ) ? $sticky['company_name'] : '';
 ?>
 <div class="esc-portal-wrap esc-portal-wrap--auth">
 	<?php include ESC_PORTAL_DIR . 'public/templates/partials/account-nav.php'; ?>
@@ -26,13 +35,13 @@ defined( 'ABSPATH' ) || exit;
 				<legend><?php esc_html_e( 'I am a…', 'es-care-portal' ); ?> <span class="esc-req" aria-hidden="true">*</span></legend>
 				<p class="esc-help"><?php esc_html_e( 'Select one to continue. This sets up the right dashboard for you.', 'es-care-portal' ); ?></p>
 				<div class="esc-role-options" role="radiogroup" aria-required="true" aria-label="<?php esc_attr_e( 'Account type', 'es-care-portal' ); ?>">
-					<label class="esc-role-option">
-						<input type="radio" name="esc_role" value="job_seeker" required>
+					<label class="esc-role-option<?php echo 'job_seeker' === $role ? ' is-selected' : ''; ?>">
+						<input type="radio" name="esc_role" value="job_seeker" required <?php checked( $role, 'job_seeker' ); ?>>
 						<span class="esc-role-option__title"><?php esc_html_e( 'Job Seeker', 'es-care-portal' ); ?></span>
 						<span class="esc-role-option__desc"><?php esc_html_e( 'Find caregiving jobs and manage applications.', 'es-care-portal' ); ?></span>
 					</label>
-					<label class="esc-role-option">
-						<input type="radio" name="esc_role" value="employer" required>
+					<label class="esc-role-option<?php echo 'employer' === $role ? ' is-selected' : ''; ?>">
+						<input type="radio" name="esc_role" value="employer" required <?php checked( $role, 'employer' ); ?>>
 						<span class="esc-role-option__title"><?php esc_html_e( 'Employer', 'es-care-portal' ); ?></span>
 						<span class="esc-role-option__desc"><?php esc_html_e( 'Post jobs and review candidates.', 'es-care-portal' ); ?></span>
 					</label>
@@ -41,24 +50,24 @@ defined( 'ABSPATH' ) || exit;
 			<div class="esc-grid">
 				<p class="esc-field">
 					<label for="esc_first_name"><?php esc_html_e( 'First name', 'es-care-portal' ); ?></label>
-					<input type="text" id="esc_first_name" name="esc_first_name" required autocomplete="given-name">
+					<input type="text" id="esc_first_name" name="esc_first_name" value="<?php echo esc_attr( $first ); ?>" required autocomplete="given-name">
 				</p>
 				<p class="esc-field">
 					<label for="esc_last_name"><?php esc_html_e( 'Last name', 'es-care-portal' ); ?></label>
-					<input type="text" id="esc_last_name" name="esc_last_name" required autocomplete="family-name">
+					<input type="text" id="esc_last_name" name="esc_last_name" value="<?php echo esc_attr( $last ); ?>" required autocomplete="family-name">
 				</p>
 			</div>
-			<p class="esc-field esc-company-field" hidden>
+			<p class="esc-company-field"<?php echo 'employer' === $role ? '' : ' hidden'; ?>>
 				<label for="esc_company_name"><?php esc_html_e( 'Company name', 'es-care-portal' ); ?></label>
-				<input type="text" id="esc_company_name" name="esc_company_name" autocomplete="organization">
+				<input type="text" id="esc_company_name" name="esc_company_name" value="<?php echo esc_attr( $company ); ?>" autocomplete="organization"<?php echo 'employer' === $role ? ' required' : ''; ?>>
 			</p>
 			<p class="esc-field">
 				<label for="esc_email"><?php esc_html_e( 'Email', 'es-care-portal' ); ?></label>
-				<input type="email" id="esc_email" name="esc_email" required autocomplete="email">
+				<input type="email" id="esc_email" name="esc_email" value="<?php echo esc_attr( $email ); ?>" required autocomplete="email">
 			</p>
 			<p class="esc-field">
 				<label for="esc_phone"><?php esc_html_e( 'Phone', 'es-care-portal' ); ?></label>
-				<input type="tel" id="esc_phone" name="esc_phone" required autocomplete="tel">
+				<input type="tel" id="esc_phone" name="esc_phone" value="<?php echo esc_attr( $phone ); ?>" required autocomplete="tel">
 			</p>
 			<p class="esc-field">
 				<label for="esc_password"><?php esc_html_e( 'Password', 'es-care-portal' ); ?></label>

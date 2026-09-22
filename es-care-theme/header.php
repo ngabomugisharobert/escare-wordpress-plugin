@@ -9,6 +9,7 @@ defined( 'ABSPATH' ) || exit;
 
 $phone = escare_phone();
 $email = escare_email();
+$user  = escare_portal_user();
 ?><!DOCTYPE html>
 <html <?php language_attributes(); ?>>
 <head>
@@ -59,7 +60,12 @@ $email = escare_email();
 			<?php else : ?>
 				<a class="escare-header-mail" href="<?php echo esc_url( 'mailto:' . $email ); ?>"><?php echo esc_html( $email ); ?></a>
 			<?php endif; ?>
-			<a class="escare-btn escare-btn--solid escare-btn--compact" href="<?php echo esc_url( escare_portal_url( 'register' ) ); ?>"><?php esc_html_e( 'Apply', 'es-care' ); ?></a>
+			<?php if ( $user ) : ?>
+				<a class="escare-btn escare-btn--solid escare-btn--compact" href="<?php echo esc_url( escare_portal_url( 'dashboard' ) ); ?>"><?php esc_html_e( 'Dashboard', 'es-care' ); ?></a>
+				<a class="escare-btn escare-btn--ghost escare-btn--compact" href="<?php echo esc_url( escare_portal_logout_url() ); ?>"><?php esc_html_e( 'Sign out', 'es-care' ); ?></a>
+			<?php else : ?>
+				<a class="escare-btn escare-btn--solid escare-btn--compact" href="<?php echo esc_url( escare_portal_url( 'register' ) ); ?>"><?php esc_html_e( 'Apply', 'es-care' ); ?></a>
+			<?php endif; ?>
 		</div>
 	</div>
 </header>

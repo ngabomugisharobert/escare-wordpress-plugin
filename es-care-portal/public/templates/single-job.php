@@ -18,6 +18,8 @@ $pay     = get_post_meta( $job_id, '_esc_pay_range', true );
 $closing = get_post_meta( $job_id, '_esc_closing_date', true );
 $types   = ESC_Portal_Helpers::employment_types();
 $terms   = get_the_terms( $job_id, 'esc_job_category' );
+$portal_user = ESC_Portal_Auth::current_user();
+$can_apply   = ! $portal_user || ESC_Portal_Users::is_seeker( $portal_user );
 ?>
 <main class="esc-portal-wrap esc-single-job">
 	<?php include ESC_PORTAL_DIR . 'public/templates/partials/account-nav.php'; ?>
@@ -50,9 +52,11 @@ $terms   = get_the_terms( $job_id, 'esc_job_category' );
 					<?php the_content(); ?>
 				</div>
 				<p class="esc-actions">
-					<?php if ( $open ) : ?>
+					<?php if ( $open && $can_apply ) : ?>
 						<a class="esc-button" href="<?php echo esc_url( ESC_Portal_Apply::apply_url( $job_id ) ); ?>"><?php esc_html_e( 'Apply for this role', 'es-care-portal' ); ?></a>
-					<?php else : ?>
+					<?php elseif ( $open && $portal_user ) : ?>
+						<a class="esc-button" href="<?php echo esc_url( ESC_Portal_Helpers::get_page_url( 'dashboard' ) ); ?>"><?php esc_html_e( 'Go to dashboard', 'es-care-portal' ); ?></a>
+					<?php elseif ( ! $open ) : ?>
 						<span class="esc-notice esc-notice--info"><?php esc_html_e( 'This position is no longer accepting applications.', 'es-care-portal' ); ?></span>
 					<?php endif; ?>
 					<a class="esc-button esc-button--ghost" href="<?php echo esc_url( ESC_Portal_Helpers::get_page_url( 'careers' ) ); ?>"><?php esc_html_e( 'All careers', 'es-care-portal' ); ?></a>

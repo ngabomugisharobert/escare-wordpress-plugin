@@ -38,10 +38,6 @@ get_header();
 				<p><?php esc_html_e( 'Fill open shifts in hospitals, nursing homes, assisted living, and rehab with CNAs, LPNs, RNs, and aides who understand clinical settings.', 'es-care' ); ?></p>
 			</article>
 			<article>
-				<h3><?php esc_html_e( 'Home-care coverage', 'es-care' ); ?></h3>
-				<p><?php esc_html_e( 'Support agencies and families who need reliable in-home caregivers, including companion care and live-in arrangements when available.', 'es-care' ); ?></p>
-			</article>
-			<article>
 				<h3><?php esc_html_e( 'Per diem and PRN fill-ins', 'es-care' ); ?></h3>
 				<p><?php esc_html_e( 'When census spikes or call-offs hit, we help you cover nights, weekends, and short-notice needs without a full-time hire.', 'es-care' ); ?></p>
 			</article>
@@ -58,7 +54,14 @@ get_header();
 		<p><?php esc_html_e( 'Start with a staffing request or an employer account.', 'es-care' ); ?></p>
 		<div class="escare-split-actions">
 			<a class="escare-btn escare-btn--solid" href="<?php echo esc_url( escare_portal_url( 'contact' ) ); ?>"><?php esc_html_e( 'Request Staffing', 'es-care' ); ?></a>
-			<a class="escare-btn escare-btn--ghost" href="<?php echo esc_url( escare_portal_url( 'register' ) ); ?>"><?php esc_html_e( 'Employer Registration', 'es-care' ); ?></a>
+			<?php
+			$user = escare_portal_user();
+			if ( $user ) :
+				?>
+				<a class="escare-btn escare-btn--ghost" href="<?php echo esc_url( escare_portal_url( 'dashboard' ) ); ?>"><?php esc_html_e( 'Go to dashboard', 'es-care' ); ?></a>
+			<?php else : ?>
+				<a class="escare-btn escare-btn--ghost" href="<?php echo esc_url( escare_portal_url( 'register' ) ); ?>"><?php esc_html_e( 'Employer Registration', 'es-care' ); ?></a>
+			<?php endif; ?>
 		</div>
 	</div>
 </div>

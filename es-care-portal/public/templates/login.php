@@ -4,10 +4,14 @@
  *
  * @package ESC_Portal
  *
- * @var string $redirect_to Redirect URL.
+ * @var string               $redirect_to Redirect URL.
+ * @var array<string,string> $sticky      Previous submission, if any.
  */
 
 defined( 'ABSPATH' ) || exit;
+
+$sticky = isset( $sticky ) && is_array( $sticky ) ? $sticky : array();
+$email  = isset( $sticky['email'] ) ? $sticky['email'] : '';
 ?>
 <div class="esc-portal-wrap esc-portal-wrap--auth">
 	<?php include ESC_PORTAL_DIR . 'public/templates/partials/account-nav.php'; ?>
@@ -24,7 +28,7 @@ defined( 'ABSPATH' ) || exit;
 			<?php endif; ?>
 			<p class="esc-field">
 				<label for="esc_email"><?php esc_html_e( 'Email', 'es-care-portal' ); ?></label>
-				<input type="email" id="esc_email" name="esc_email" required autocomplete="username">
+				<input type="email" id="esc_email" name="esc_email" value="<?php echo esc_attr( $email ); ?>" required autocomplete="username">
 			</p>
 			<p class="esc-field">
 				<label for="esc_password"><?php esc_html_e( 'Password', 'es-care-portal' ); ?></label>
