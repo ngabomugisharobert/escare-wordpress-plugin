@@ -31,6 +31,7 @@ $user  = escare_portal_user();
 				width="1888"
 				height="716"
 				decoding="async"
+				fetchpriority="high"
 			>
 		</a>
 

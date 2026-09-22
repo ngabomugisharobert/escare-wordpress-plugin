@@ -58,7 +58,7 @@ function escare_portal_url( $slug ) {
 		'post-job'        => '/post-a-job/',
 		'lost-password'   => '/lost-password/',
 		'reset-password'  => '/reset-password/',
-		'contact'         => '/contact-us/',
+		'contact'         => '/contact/',
 	);
 
 	$path = isset( $fallbacks[ $slug ] ) ? $fallbacks[ $slug ] : '/';
@@ -300,7 +300,7 @@ function escare_is_contact_page() {
 		return false;
 	}
 
-	if ( class_exists( 'ESC_Portal_Helpers' ) && $id === ESC_Portal_Helpers::get_page_id( 'contact' ) ) {
+	if ( class_exists( 'ESC_Portal_Helpers' ) && method_exists( 'ESC_Portal_Helpers', 'find_page_id' ) && $id === ESC_Portal_Helpers::find_page_id( 'contact' ) ) {
 		return true;
 	}
 
@@ -320,4 +320,42 @@ function escare_is_contact_page() {
 	}
 
 	return has_shortcode( (string) $post->post_content, 'esc_contact' );
+}
+
+/**
+ * Public Code of Conduct page (gated to signed-in dashboard users).
+ *
+ * @return bool
+ */
+function escare_is_code_of_conduct_page() {
+	if ( ! is_singular( 'page' ) ) {
+		return false;
+	}
+
+	$id = get_queried_object_id();
+	if ( ! $id ) {
+		return false;
+	}
+
+	$pages = get_option( 'escare_theme_pages', array() );
+	if ( is_array( $pages ) && ! empty( $pages['code-of-conduct'] ) && (int) $pages['code-of-conduct'] === $id ) {
+		return true;
+	}
+
+	$post = get_post( $id );
+	if ( ! $post ) {
+		return false;
+	}
+
+	$slug = strtolower( (string) $post->post_name );
+	if ( 'code-of-conduct' === $slug ) {
+		return true;
+	}
+
+	$title = strtolower( trim( wp_strip_all_tags( (string) $post->post_title ) ) );
+	if ( 'code of conduct' === $title ) {
+		return true;
+	}
+
+	return 'page-templates/template-code-of-conduct.php' === (string) get_page_template_slug( $id );
 }

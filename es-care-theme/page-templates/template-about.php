@@ -19,7 +19,7 @@ get_header();
 <section class="escare-section">
 	<div class="escare-wrap">
 		<div class="escare-media">
-			<img src="<?php echo esc_url( escare_asset( 'img/caregiver-visit.jpg' ) ); ?>" alt="<?php esc_attr_e( 'A caregiver in scrubs talking with an older adult during a visit', 'es-care' ); ?>" width="1600" height="1067">
+			<img src="<?php echo esc_url( escare_asset( 'img/caregiver-visit.jpg' ) ); ?>" alt="<?php esc_attr_e( 'A caregiver in scrubs talking with an older adult during a visit', 'es-care' ); ?>" width="1600" height="1067" loading="lazy" decoding="async">
 			<div class="escare-prose">
 		<h2><?php esc_html_e( 'Mission', 'es-care' ); ?></h2>
 		<p><?php esc_html_e( 'To provide trusted healthcare staffing that protects continuity of care. We recruit people who are qualified, compassionate, and ready to work, and we place them where they can make a difference.', 'es-care' ); ?></p>

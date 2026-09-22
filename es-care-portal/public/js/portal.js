@@ -107,6 +107,39 @@
 		selected.dispatchEvent(new Event('change', { bubbles: true }));
 	}
 
+	function initDashMenus() {
+		var menus = document.querySelectorAll('.esc-subnav');
+		for (var i = 0; i < menus.length; i++) {
+			bindDashMenu(menus[i]);
+		}
+	}
+
+	function bindDashMenu(nav) {
+		var button = nav.querySelector('.esc-subnav-toggle');
+		if (!button || button.dataset.escBound === '1') {
+			return;
+		}
+
+		button.dataset.escBound = '1';
+
+		function setOpen(open) {
+			nav.classList.toggle('is-open', open);
+			button.setAttribute('aria-expanded', open ? 'true' : 'false');
+			button.setAttribute('aria-label', open ? (i18n.menuClose || 'Close dashboard menu') : (i18n.menuOpen || 'Open dashboard menu'));
+		}
+
+		button.addEventListener('click', function () {
+			setOpen(!nav.classList.contains('is-open'));
+		});
+
+		document.addEventListener('keydown', function (event) {
+			if (event.key === 'Escape' && nav.classList.contains('is-open')) {
+				setOpen(false);
+				button.focus();
+			}
+		});
+	}
+
 	if (document.readyState === 'loading') {
 		document.addEventListener('DOMContentLoaded', function () {
 			initPasswordToggles();
@@ -114,6 +147,7 @@
 			initUserModal();
 			initMessageModal();
 			syncRolePicker();
+			initDashMenus();
 		});
 	} else {
 		initPasswordToggles();
@@ -121,6 +155,7 @@
 		initUserModal();
 		initMessageModal();
 		syncRolePicker();
+		initDashMenus();
 	}
 
 	function initDataTables() {

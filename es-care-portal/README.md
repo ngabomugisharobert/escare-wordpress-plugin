@@ -4,7 +4,7 @@ WordPress plugin for **ES Care Services LLC**. It runs a job-seeker and employer
 
 Requires WordPress 6.0+ and PHP 7.4+. Elementor is optional.
 
-Current version: **2.0.11**
+Current version: **2.0.15**
 
 ## What it does
 
@@ -38,7 +38,7 @@ Existing installs upgrade automatically. Schema version is stored in `esc_portal
 | Post a Job  | `/post-a-job/`   | `[esc_job_form]`   |
 | Lost Password | `/lost-password/` | `[esc_lost_password]` |
 | Reset Password | `/reset-password/` | `[esc_reset_password]` |
-| Contact Us  | `/contact-us/`   | `[esc_contact]`    |
+| Contact Us  | `/contact/`      | `[esc_contact]`    |
 
 If a page is missing, deactivate and reactivate the plugin, or recreate it with the matching shortcode. Assigned page IDs are listed under **Settings → Frontend pages**.
 
@@ -52,7 +52,7 @@ If a page is missing, deactivate and reactivate the plugin, or recreate it with 
 | `[esc_dash_view view="apply"]` | One dashboard view |
 | `[esc_portal_notice]` | Flash notice after a form POST |
 
-Dashboard views use `?esc_view=`. Examples: `apply`, `assessments`, `results`, `forms`, `request` (seeker); `profile`, `jobs`, `post`, `membership`, `request` (employer); `users`, `jobs`, `applications`, `contact` (portal admin).
+Dashboard views use `?esc_view=`. Examples: `apply`, `assessments`, `results`, `forms`, `request` (seeker); `profile`, `jobs`, `post`, `membership`, `request` (employer); `users`, `jobs`, `applications` (portal admin). Contact Us is a public page, not a portal-admin dashboard view.
 
 ## Account roles
 

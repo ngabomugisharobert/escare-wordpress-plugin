@@ -19,7 +19,7 @@ $closing = get_post_meta( $job_id, '_esc_closing_date', true );
 $types   = ESC_Portal_Helpers::employment_types();
 $terms   = get_the_terms( $job_id, 'esc_job_category' );
 $portal_user = ESC_Portal_Auth::current_user();
-$can_apply   = ! $portal_user || ESC_Portal_Users::is_seeker( $portal_user );
+$can_apply   = ESC_Portal_Users::can_apply_to_jobs( $portal_user ? $portal_user : null );
 ?>
 <main class="esc-portal-wrap esc-single-job">
 	<?php include ESC_PORTAL_DIR . 'public/templates/partials/account-nav.php'; ?>

@@ -17,7 +17,7 @@ defined( 'ABSPATH' ) || exit;
 
 $categories = ( ! is_wp_error( $categories ) && is_array( $categories ) ) ? $categories : array();
 $portal_user = class_exists( 'ESC_Portal_Auth' ) ? ESC_Portal_Auth::current_user() : null;
-$can_apply   = ! $portal_user || ( class_exists( 'ESC_Portal_Users' ) && ESC_Portal_Users::is_seeker( $portal_user ) );
+$can_apply   = class_exists( 'ESC_Portal_Users' ) && ESC_Portal_Users::can_apply_to_jobs( $portal_user ? $portal_user : null );
 $dashboard   = class_exists( 'ESC_Portal_Helpers' ) ? ESC_Portal_Helpers::get_page_url( 'dashboard' ) : home_url( '/portal-dashboard/' );
 ?>
 <div class="esc-portal-wrap">

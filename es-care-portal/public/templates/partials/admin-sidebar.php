@@ -14,12 +14,27 @@ $items = array(
 	'users'        => __( 'Users', 'es-care-portal' ),
 	'jobs'         => __( 'Jobs', 'es-care-portal' ),
 	'applications' => __( 'Applications', 'es-care-portal' ),
-	'contact'      => __( 'Contact Us', 'es-care-portal' ),
+	'conduct'      => __( 'Code of Conduct', 'es-care-portal' ),
 );
+
+$current_label = isset( $items[ $view ] ) ? $items[ $view ] : __( 'Menu', 'es-care-portal' );
 ?>
-<header class="esc-side esc-subnav" aria-label="<?php esc_attr_e( 'Admin menu', 'es-care-portal' ); ?>">
-	<p class="esc-side-kicker esc-subnav-kicker"><?php esc_html_e( 'Portal Admin', 'es-care-portal' ); ?></p>
-	<nav class="esc-side-nav esc-subnav-links">
+<header class="esc-side esc-subnav">
+	<p class="esc-side-kicker esc-subnav-kicker esc-subnav-kicker--bar"><?php esc_html_e( 'Portal Admin', 'es-care-portal' ); ?></p>
+	<button
+		type="button"
+		class="esc-subnav-toggle"
+		aria-expanded="false"
+		aria-controls="esc-dash-nav-admin"
+		aria-label="<?php echo esc_attr( sprintf( __( 'Dashboard menu, %s', 'es-care-portal' ), $current_label ) ); ?>"
+	>
+		<span class="esc-subnav-toggle-copy">
+			<span class="esc-side-kicker esc-subnav-kicker"><?php esc_html_e( 'Portal Admin', 'es-care-portal' ); ?></span>
+			<span class="esc-subnav-current"><?php echo esc_html( $current_label ); ?></span>
+		</span>
+		<span class="esc-subnav-chevron" aria-hidden="true"></span>
+	</button>
+	<nav id="esc-dash-nav-admin" class="esc-side-nav esc-subnav-links" aria-label="<?php esc_attr_e( 'Admin menu', 'es-care-portal' ); ?>">
 		<?php foreach ( $items as $key => $label ) : ?>
 			<a href="<?php echo esc_url( ESC_Portal_Helpers::dashboard_url( $key ) ); ?>"<?php echo $view === $key ? ' aria-current="page"' : ''; ?>><?php echo esc_html( $label ); ?></a>
 		<?php endforeach; ?>

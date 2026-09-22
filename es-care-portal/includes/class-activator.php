@@ -137,21 +137,40 @@ class ESC_Portal_Activator {
 			),
 			'contact'         => array(
 				'title'     => __( 'Contact Us', 'es-care-portal' ),
-				'slug'      => 'contact-us',
+				'slug'      => 'contact',
 				'shortcode' => '[esc_contact]',
 			),
 		);
 
 		foreach ( $pages as $key => $config ) {
-			$existing_id = isset( $stored[ $key ] ) ? absint( $stored[ $key ] ) : 0;
+			if ( 'contact' === $key ) {
+				$preferred = get_page_by_path( 'contact' );
+				if ( $preferred instanceof WP_Post && 'publish' === $preferred->post_status ) {
+					$stored[ $key ] = (int) $preferred->ID;
+					continue;
+				}
+			}
 
-			if ( $existing_id && get_post( $existing_id ) ) {
+			$existing_id = isset( $stored[ $key ] ) ? absint( $stored[ $key ] ) : 0;
+			$existing    = $existing_id ? get_post( $existing_id ) : null;
+
+			if ( $existing && 'page' === $existing->post_type && 'publish' === $existing->post_status ) {
 				continue;
 			}
 
 			$found = get_page_by_path( $config['slug'] );
 
-			if ( $found instanceof WP_Post ) {
+			if ( ( ! $found || 'publish' !== $found->post_status ) && 'contact' === $key ) {
+				foreach ( array( 'contact', 'contact-us', 'contactus' ) as $alias ) {
+					$alias_page = get_page_by_path( $alias );
+					if ( $alias_page instanceof WP_Post && 'publish' === $alias_page->post_status ) {
+						$found = $alias_page;
+						break;
+					}
+				}
+			}
+
+			if ( $found instanceof WP_Post && 'publish' === $found->post_status ) {
 				$stored[ $key ] = (int) $found->ID;
 				continue;
 			}

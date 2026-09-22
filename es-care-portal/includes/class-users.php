@@ -682,6 +682,25 @@ class ESC_Portal_Users {
 	}
 
 	/**
+	 * Guests and job seekers may apply. Portal admin and employer sessions may not.
+	 * A WordPress administrator with no portal session is treated as a guest.
+	 *
+	 * @param object|null|false $user Portal user. false uses the current portal session.
+	 * @return bool
+	 */
+	public static function can_apply_to_jobs( $user = false ) {
+		if ( false === $user ) {
+			$user = class_exists( 'ESC_Portal_Auth' ) ? ESC_Portal_Auth::current_user() : null;
+		}
+
+		if ( ! $user ) {
+			return true;
+		}
+
+		return self::is_seeker( $user );
+	}
+
+	/**
 	 * Format a role label.
 	 *
 	 * @param string $role Role key.

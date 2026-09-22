@@ -18,7 +18,7 @@ $user    = escare_portal_user();
 <footer class="escare-footer" role="contentinfo">
 	<div class="escare-wrap escare-footer-grid">
 		<div class="escare-footer-brand">
-			<img class="escare-footer-logo" src="<?php echo esc_url( escare_logo_url() ); ?>" alt="<?php echo esc_attr__( 'ES Care Services', 'es-care' ); ?>" width="1888" height="716" decoding="async">
+			<img class="escare-footer-logo" src="<?php echo esc_url( escare_logo_url() ); ?>" alt="<?php echo esc_attr__( 'ES Care Services', 'es-care' ); ?>" width="1888" height="716" loading="lazy" decoding="async">
 			<p class="escare-footer-legal"><?php esc_html_e( 'E&S Care Service LLC', 'es-care' ); ?></p>
 			<p><?php esc_html_e( 'Healthcare staffing services for facilities and caregivers. Care you can trust.', 'es-care' ); ?></p>
 		</div>

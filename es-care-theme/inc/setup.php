@@ -10,10 +10,14 @@ defined( 'ABSPATH' ) || exit;
 add_action( 'after_setup_theme', 'escare_setup' );
 add_action( 'wp_enqueue_scripts', 'escare_enqueue_assets' );
 add_action( 'wp_head', 'escare_output_favicon', 1 );
+add_action( 'wp_head', 'escare_preload_critical_assets', 2 );
 add_filter( 'get_site_icon_url', 'escare_filter_site_icon_url', 10, 3 );
 add_filter( 'body_class', 'escare_body_class' );
 add_filter( 'nav_menu_css_class', 'escare_menu_item_classes', 10, 2 );
 add_filter( 'nav_menu_link_attributes', 'escare_menu_link_attrs', 10, 2 );
+add_filter( 'wp_nav_menu_objects', 'escare_rewrite_contact_menu_urls', 8, 2 );
+add_filter( 'wp_nav_menu_objects', 'escare_hide_code_of_conduct_menu_items', 9, 2 );
+add_filter( 'wp_nav_menu_objects', 'escare_filter_menu_by_portal_role', 10, 2 );
 add_filter( 'template_include', 'escare_contact_template', 999 );
 add_action( 'template_redirect', 'escare_block_cross_role_pages', 1 );
 
@@ -50,16 +54,9 @@ function escare_setup() {
  */
 function escare_enqueue_assets() {
 	wp_enqueue_style(
-		'escare-fonts',
-		'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Outfit:wght@400;500;600;700&display=swap',
-		array(),
-		null
-	);
-
-	wp_enqueue_style(
 		'escare-site',
 		ESCARE_THEME_URI . '/assets/css/site.css',
-		array( 'escare-fonts' ),
+		array(),
 		ESCARE_THEME_VERSION
 	);
 
@@ -70,6 +67,16 @@ function escare_enqueue_assets() {
 		ESCARE_THEME_VERSION,
 		true
 	);
+
+	if ( is_front_page() ) {
+		wp_enqueue_script(
+			'escare-hero',
+			ESCARE_THEME_URI . '/assets/js/hero.js',
+			array(),
+			ESCARE_THEME_VERSION,
+			true
+		);
+	}
 
 	if ( escare_is_contact_page() && defined( 'ESC_PORTAL_URL' ) && defined( 'ESC_PORTAL_VERSION' ) ) {
 		wp_enqueue_style(
@@ -95,6 +102,24 @@ function escare_output_favicon() {
 	<link rel="icon" href="<?php echo esc_url( $ico ); ?>" sizes="any">
 	<link rel="apple-touch-icon" href="<?php echo esc_url( $url ); ?>">
 	<?php
+}
+
+/**
+ * Preload local body font and the first hero photo only.
+ */
+function escare_preload_critical_assets() {
+	$outfit = escare_asset( 'fonts/outfit-latin.woff2' );
+	printf(
+		'<link rel="preload" href="%s" as="font" type="font/woff2" crossorigin>' . "\n",
+		esc_url( $outfit )
+	);
+
+	if ( is_front_page() ) {
+		printf(
+			'<link rel="preload" href="%s" as="image" fetchpriority="high">' . "\n",
+			esc_url( escare_asset( 'img/hero-slide-1.jpg' ) )
+		);
+	}
 }
 
 /**
@@ -160,17 +185,217 @@ function escare_menu_link_attrs( $atts, $item ) {
 }
 
 /**
+ * Header Contact Us is a stored custom URL. Point it at the live /contact/ page
+ * even when the menu still has ?page_id=183 or /contact-us/.
+ *
+ * @param array $items Menu items.
+ * @param mixed $args  wp_nav_menu args.
+ * @return array
+ */
+function escare_rewrite_contact_menu_urls( $items, $args ) {
+	if ( empty( $items ) || ! is_array( $items ) ) {
+		return $items;
+	}
+
+	$url = escare_portal_url( 'contact' );
+	if ( ! $url ) {
+		return $items;
+	}
+
+	foreach ( $items as $item ) {
+		if ( escare_menu_item_is_contact( $item ) ) {
+			$item->url = $url;
+		}
+	}
+
+	return $items;
+}
+
+/**
+ * @param object $item Menu item.
+ * @return bool
+ */
+function escare_menu_item_is_contact( $item ) {
+	$title = strtolower( trim( wp_strip_all_tags( (string) $item->title ) ) );
+	if ( in_array( $title, array( 'contact', 'contact us' ), true ) ) {
+		return true;
+	}
+
+	$path = strtolower( trim( (string) wp_parse_url( (string) $item->url, PHP_URL_PATH ), '/' ) );
+	if ( in_array( $path, array( 'contact', 'contact-us', 'contactus' ), true ) ) {
+		return true;
+	}
+
+	$query = (string) wp_parse_url( (string) $item->url, PHP_URL_QUERY );
+	if ( $query && false !== strpos( $query, 'page_id=' ) ) {
+		parse_str( $query, $vars );
+		$page_id = isset( $vars['page_id'] ) ? absint( $vars['page_id'] ) : 0;
+		if ( $page_id ) {
+			$post = get_post( $page_id );
+			if ( $post ) {
+				$slug  = strtolower( (string) $post->post_name );
+				$ptitle = strtolower( trim( wp_strip_all_tags( (string) $post->post_title ) ) );
+				return in_array( $slug, array( 'contact', 'contact-us', 'contactus' ), true )
+					|| in_array( $ptitle, array( 'contact', 'contact us' ), true );
+			}
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Hide Employers for job seekers and Job Seekers for employers.
+ * Portal admin keeps both. WordPress login alone does not change the menu.
+ *
+ * @param array  $items Menu items.
+ * @param object $args  wp_nav_menu args.
+ * @return array
+ */
+function escare_filter_menu_by_portal_role( $items, $args ) {
+	if ( empty( $items ) || ! is_array( $items ) ) {
+		return $items;
+	}
+
+	$location = '';
+	if ( is_object( $args ) && isset( $args->theme_location ) ) {
+		$location = (string) $args->theme_location;
+	} elseif ( is_array( $args ) && ! empty( $args['theme_location'] ) ) {
+		$location = (string) $args['theme_location'];
+	}
+
+	if ( $location && 'primary' !== $location ) {
+		return $items;
+	}
+
+	$user = escare_portal_user();
+	if ( ! $user || ! class_exists( 'ESC_Portal_Users' ) ) {
+		return $items;
+	}
+
+	$hide_employers = ESC_Portal_Users::is_seeker( $user );
+	$hide_seekers   = ESC_Portal_Users::is_employer( $user );
+
+	if ( ! $hide_employers && ! $hide_seekers ) {
+		return $items;
+	}
+
+	$kept = array();
+	foreach ( $items as $item ) {
+		if ( $hide_employers && escare_menu_item_is_employers( $item ) ) {
+			continue;
+		}
+		if ( $hide_seekers && escare_menu_item_is_job_seekers( $item ) ) {
+			continue;
+		}
+		$kept[] = $item;
+	}
+
+	return $kept;
+}
+
+/**
+ * Code of Conduct lives in the signed-in dashboard, not public chrome.
+ *
+ * @param array $items Menu items.
+ * @param mixed $args  wp_nav_menu args.
+ * @return array
+ */
+function escare_hide_code_of_conduct_menu_items( $items, $args ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
+	if ( empty( $items ) || ! is_array( $items ) ) {
+		return $items;
+	}
+
+	$kept = array();
+	foreach ( $items as $item ) {
+		if ( escare_menu_item_is_code_of_conduct( $item ) ) {
+			continue;
+		}
+		$kept[] = $item;
+	}
+
+	return $kept;
+}
+
+/**
+ * @param object $item Menu item.
+ * @return bool
+ */
+function escare_menu_item_is_code_of_conduct( $item ) {
+	$pages = get_option( 'escare_theme_pages', array() );
+	$id    = ( is_array( $pages ) && ! empty( $pages['code-of-conduct'] ) ) ? (int) $pages['code-of-conduct'] : 0;
+
+	if ( $id && (int) $item->object_id === $id ) {
+		return true;
+	}
+
+	$title = strtolower( trim( wp_strip_all_tags( (string) $item->title ) ) );
+	$path  = strtolower( trim( (string) wp_parse_url( (string) $item->url, PHP_URL_PATH ), '/' ) );
+
+	return 'code of conduct' === $title || 'code-of-conduct' === $path;
+}
+
+/**
+ * @param object $item Menu item.
+ * @return bool
+ */
+function escare_menu_item_is_employers( $item ) {
+	$pages = get_option( 'escare_theme_pages', array() );
+	$id    = ( is_array( $pages ) && ! empty( $pages['employers'] ) ) ? (int) $pages['employers'] : 0;
+
+	if ( $id && (int) $item->object_id === $id ) {
+		return true;
+	}
+
+	$title = strtolower( trim( wp_strip_all_tags( (string) $item->title ) ) );
+	$path  = strtolower( trim( (string) wp_parse_url( (string) $item->url, PHP_URL_PATH ), '/' ) );
+
+	return in_array( $title, array( 'employers', 'employer' ), true )
+		|| in_array( $path, array( 'employers', 'employer' ), true );
+}
+
+/**
+ * @param object $item Menu item.
+ * @return bool
+ */
+function escare_menu_item_is_job_seekers( $item ) {
+	$pages = get_option( 'escare_theme_pages', array() );
+	$id    = ( is_array( $pages ) && ! empty( $pages['job-seekers'] ) ) ? (int) $pages['job-seekers'] : 0;
+
+	if ( $id && (int) $item->object_id === $id ) {
+		return true;
+	}
+
+	$title = strtolower( trim( wp_strip_all_tags( (string) $item->title ) ) );
+	$path  = strtolower( trim( (string) wp_parse_url( (string) $item->url, PHP_URL_PATH ), '/' ) );
+
+	return in_array( $title, array( 'job seekers', 'job seeker' ), true )
+		|| in_array( $path, array( 'job-seekers', 'job-seeker' ), true );
+}
+
+/**
  * Default primary menu markup when no menu is assigned.
  */
 function escare_fallback_primary_menu() {
+	$user         = escare_portal_user();
+	$is_seeker    = $user && class_exists( 'ESC_Portal_Users' ) && ESC_Portal_Users::is_seeker( $user );
+	$is_employer  = $user && class_exists( 'ESC_Portal_Users' ) && ESC_Portal_Users::is_employer( $user );
+
 	$items = array(
-		home_url( '/' )                 => __( 'Home', 'es-care' ),
-		escare_page_url( 'about' )      => __( 'About Us', 'es-care' ),
+		home_url( '/' )                   => __( 'Home', 'es-care' ),
+		escare_page_url( 'about' )        => __( 'About Us', 'es-care' ),
 		escare_page_url( 'who-we-staff' ) => __( 'Who We Staff', 'es-care' ),
-		escare_page_url( 'employers' )  => __( 'Employers', 'es-care' ),
-		escare_page_url( 'job-seekers' ) => __( 'Job Seekers', 'es-care' ),
-		escare_portal_url( 'contact' )  => __( 'Contact Us', 'es-care' ),
 	);
+
+	if ( ! $is_seeker ) {
+		$items[ escare_page_url( 'employers' ) ] = __( 'Employers', 'es-care' );
+	}
+
+	if ( ! $is_employer ) {
+		$items[ escare_page_url( 'job-seekers' ) ] = __( 'Job Seekers', 'es-care' );
+	}
+
+	$items[ escare_portal_url( 'contact' ) ] = __( 'Contact Us', 'es-care' );
 
 	echo '<ul class="escare-nav-list">';
 	foreach ( $items as $url => $label ) {

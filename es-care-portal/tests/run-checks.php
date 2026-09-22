@@ -68,6 +68,9 @@ $needles = array(
 	'table_request'                   => $root . '/includes/class-shortcodes.php',
 	'zeroResults'                     => $root . '/public/js/portal.js',
 	'maybe_upgrade'                    => $root . '/includes/class-plugin.php',
+	'can_apply_to_jobs'                => $root . '/includes/class-users.php',
+	'dashboard_views'                  => $root . '/includes/class-helpers.php',
+	'portal admin, so you cannot apply' => $root . '/includes/class-shortcodes.php',
 );
 
 foreach ( $needles as $needle => $file ) {
@@ -106,6 +109,28 @@ if ( preg_match( '/ensure_tables\(\)|Roles::add_roles\(/', $plugin ) ) {
 	esc_check_fail( $fails, 'bootstrap still writes schema/roles on every request' );
 } else {
 	esc_check_pass( 'plugin bootstrap no longer runs ensure_tables/add_roles per request' );
+}
+
+$admin_sidebar = file_get_contents( $root . '/public/templates/partials/admin-sidebar.php' );
+if ( preg_match( "/'contact'\\s*=>/", $admin_sidebar ) ) {
+	esc_check_fail( $fails, 'portal admin sidebar still lists Contact Us as a dashboard view' );
+} else {
+	esc_check_pass( 'portal admin sidebar omits Contact Us' );
+}
+
+$admin_views = file_get_contents( $root . '/includes/class-helpers.php' );
+if ( ! preg_match( "/if \\( 'admin' === \\$role \\) \\{[\\s\\S]*return array\\( 'home', 'users', 'jobs', 'applications' \\)/", $admin_views ) ) {
+	esc_check_fail( $fails, 'admin dashboard_views must be home, users, jobs, applications' );
+} else {
+	esc_check_pass( 'admin dashboard views omit contact' );
+}
+
+$jobs = file_get_contents( $root . '/public/templates/jobs.php' );
+$single = file_get_contents( $root . '/public/templates/single-job.php' );
+if ( false === strpos( $jobs, 'can_apply_to_jobs' ) || false === strpos( $single, 'can_apply_to_jobs' ) ) {
+	esc_check_fail( $fails, 'careers and job pages must hide Apply via can_apply_to_jobs' );
+} else {
+	esc_check_pass( 'careers and job pages use can_apply_to_jobs' );
 }
 
 if ( $fails ) {

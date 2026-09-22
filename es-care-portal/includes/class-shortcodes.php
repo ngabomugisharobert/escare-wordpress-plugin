@@ -247,9 +247,13 @@ class ESC_Portal_Shortcodes {
 		}
 
 		if ( ! ESC_Portal_Users::is_seeker() ) {
-			$message = ESC_Portal_Users::is_employer()
-				? __( 'You are signed in as an employer, so you cannot access job seeker pages.', 'es-care-portal' )
-				: __( 'Only job seekers can apply for positions.', 'es-care-portal' );
+			if ( ESC_Portal_Users::is_employer() ) {
+				$message = __( 'You are signed in as an employer, so you cannot access job seeker pages.', 'es-care-portal' );
+			} elseif ( ESC_Portal_Users::is_admin() ) {
+				$message = __( 'You are signed in as a portal admin, so you cannot apply for jobs.', 'es-care-portal' );
+			} else {
+				$message = __( 'Only job seekers can apply for positions.', 'es-care-portal' );
+			}
 
 			return '<div class="esc-portal-wrap"><p class="esc-notice esc-notice--error">' . esc_html( $message ) . '</p><p><a class="esc-button" href="' . esc_url( ESC_Portal_Helpers::get_page_url( 'dashboard' ) ) . '">' . esc_html__( 'Go to dashboard', 'es-care-portal' ) . '</a></p></div>';
 		}
@@ -497,23 +501,6 @@ class ESC_Portal_Shortcodes {
 		if ( 'applications' === $view ) {
 			$args['applications'] = self::applications_for_jobs( array(), $req );
 			$args['apps_total']   = self::applications_count( array(), $req );
-		}
-
-		if ( 'contact' === $view ) {
-			$args['requests'] = ESC_Portal_Forms::query_requests(
-				array(
-					'number'  => $req['number'],
-					'offset'  => $req['offset'],
-					'search'  => $req['search'],
-					'orderby' => $req['orderby'],
-					'order'   => $req['order'],
-				)
-			);
-			$args['requests_total'] = ESC_Portal_Forms::query_requests_count(
-				array(
-					'search' => $req['search'],
-				)
-			);
 		}
 
 		return $args;

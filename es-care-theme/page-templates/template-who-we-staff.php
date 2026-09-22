@@ -19,7 +19,7 @@ get_header();
 <section class="escare-section">
 	<div class="escare-wrap">
 		<div class="escare-media escare-media--reverse" style="margin-bottom:2rem;">
-			<img src="<?php echo esc_url( escare_asset( 'img/companionship.jpg' ) ); ?>" alt="<?php esc_attr_e( 'Companionship and group activities as part of home and facility care', 'es-care' ); ?>" width="1600" height="1067">
+			<img src="<?php echo esc_url( escare_asset( 'img/companionship.jpg' ) ); ?>" alt="<?php esc_attr_e( 'Companionship and group activities as part of home and facility care', 'es-care' ); ?>" width="1600" height="1067" loading="lazy" decoding="async">
 			<p class="escare-prose" style="margin:0;"><?php esc_html_e( 'From CNAs and HHAs to LPNs and RNs, we staff the people who keep residents and clients safe, engaged, and treated with dignity.', 'es-care' ); ?></p>
 		</div>
 		<ul class="escare-roles">

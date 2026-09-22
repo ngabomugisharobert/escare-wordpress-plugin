@@ -10,6 +10,9 @@ defined( 'ABSPATH' ) || exit;
 
 add_action( 'after_switch_theme', 'escare_on_activate' );
 add_action( 'admin_init', 'escare_maybe_seed' );
+add_action( 'init', 'escare_maybe_seed', 20 );
+add_action( 'template_redirect', 'escare_redirect_stale_contact_urls', 0 );
+add_action( 'template_redirect', 'escare_gate_code_of_conduct_page', 1 );
 
 /**
  * Drop a leftover PointLab custom logo so the E&S Care mark shows.
@@ -44,6 +47,8 @@ function escare_replace_pointlab_logo() {
 function escare_on_activate() {
 	escare_create_marketing_pages();
 	escare_assign_contact_template();
+	escare_repair_contact_menu_urls();
+	escare_remove_code_of_conduct_from_menus();
 	escare_setup_menus();
 	escare_replace_pointlab_logo();
 	escare_seed_contact_defaults();
@@ -202,7 +207,9 @@ function escare_assign_contact_template() {
 	$ids = array();
 
 	if ( class_exists( 'ESC_Portal_Helpers' ) ) {
-		$portal_id = ESC_Portal_Helpers::get_page_id( 'contact' );
+		$portal_id = method_exists( 'ESC_Portal_Helpers', 'find_page_id' )
+			? ESC_Portal_Helpers::find_page_id( 'contact' )
+			: ESC_Portal_Helpers::get_page_id( 'contact' );
 		if ( $portal_id ) {
 			$ids[] = $portal_id;
 		}
@@ -252,6 +259,135 @@ function escare_assign_contact_template() {
 }
 
 /**
+ * Point baked-in Contact Us menu links at the live Contact page.
+ */
+function escare_repair_contact_menu_urls() {
+	$url = escare_portal_url( 'contact' );
+	if ( ! $url ) {
+		return;
+	}
+
+	$live = untrailingslashit( $url );
+	$menus = wp_get_nav_menus();
+	if ( empty( $menus ) || ! is_array( $menus ) ) {
+		return;
+	}
+
+	foreach ( $menus as $menu ) {
+		$items = wp_get_nav_menu_items( $menu->term_id );
+		if ( empty( $items ) || ! is_array( $items ) ) {
+			continue;
+		}
+
+		foreach ( $items as $item ) {
+			if ( ! escare_menu_item_is_contact( $item ) ) {
+				continue;
+			}
+
+			if ( untrailingslashit( (string) $item->url ) === $live ) {
+				continue;
+			}
+
+			update_post_meta( (int) $item->ID, '_menu_item_url', esc_url_raw( $url ) );
+			update_post_meta( (int) $item->ID, '_menu_item_type', 'custom' );
+			update_post_meta( (int) $item->ID, '_menu_item_object', 'custom' );
+		}
+	}
+}
+
+/**
+ * Send leftover /contact-us/ bookmarks to the live Contact page.
+ */
+function escare_redirect_stale_contact_urls() {
+	$contact = escare_portal_url( 'contact' );
+	if ( ! $contact ) {
+		return;
+	}
+
+	$path = wp_parse_url( isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '', PHP_URL_PATH );
+	$path = strtolower( trim( (string) $path, '/' ) );
+
+	if ( in_array( $path, array( 'contact-us', 'contactus' ), true ) ) {
+		wp_safe_redirect( $contact, 301 );
+		exit;
+	}
+
+	if ( ! is_404() ) {
+		return;
+	}
+
+	$page_id = isset( $_GET['page_id'] ) ? absint( wp_unslash( $_GET['page_id'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( ! $page_id && isset( $_GET['p'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$page_id = absint( wp_unslash( $_GET['p'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	}
+
+	if ( ! $page_id ) {
+		return;
+	}
+
+	$post = get_post( $page_id );
+	if ( $post && 'publish' === $post->post_status && 'page' === $post->post_type ) {
+		return;
+	}
+
+	$title = $post ? strtolower( trim( wp_strip_all_tags( (string) $post->post_title ) ) ) : '';
+	$slug  = $post ? strtolower( (string) $post->post_name ) : '';
+	$looks_like_contact = in_array( $title, array( 'contact', 'contact us' ), true )
+		|| in_array( $slug, array( 'contact', 'contact-us', 'contactus' ), true );
+
+	if ( ! $looks_like_contact && ! $post ) {
+		$menus = wp_get_nav_menus();
+		if ( is_array( $menus ) ) {
+			foreach ( $menus as $menu ) {
+				$items = wp_get_nav_menu_items( $menu->term_id );
+				if ( empty( $items ) ) {
+					continue;
+				}
+				foreach ( $items as $item ) {
+					if ( ! escare_menu_item_is_contact( $item ) ) {
+						continue;
+					}
+					if ( false !== strpos( (string) $item->url, 'page_id=' . $page_id ) || (int) $item->object_id === $page_id ) {
+						$looks_like_contact = true;
+						break 2;
+					}
+				}
+			}
+		}
+	}
+
+	if ( $looks_like_contact ) {
+		wp_safe_redirect( $contact, 301 );
+		exit;
+	}
+}
+
+/**
+ * Code of Conduct is a signed-in dashboard page, not a public marketing page.
+ */
+function escare_gate_code_of_conduct_page() {
+	if ( ! escare_is_code_of_conduct_page() ) {
+		return;
+	}
+
+	$target = class_exists( 'ESC_Portal_Helpers' )
+		? ESC_Portal_Helpers::dashboard_url( 'conduct' )
+		: escare_portal_url( 'dashboard' );
+
+	if ( escare_portal_user() ) {
+		wp_safe_redirect( $target );
+		exit;
+	}
+
+	$login = class_exists( 'ESC_Portal_Helpers' )
+		? ESC_Portal_Helpers::get_page_url( 'login', array( 'redirect_to' => $target ) )
+		: escare_portal_url( 'login' );
+
+	wp_safe_redirect( $login );
+	exit;
+}
+
+/**
  * Primary and footer menus — ES Care items only (strips PointLab leftovers).
  */
 function escare_setup_menus() {
@@ -294,7 +430,6 @@ function escare_setup_menus() {
 				array( 'key' => 'services', 'title' => __( 'Services', 'es-care' ) ),
 				array( 'key' => 'core-values', 'title' => __( 'Core Values', 'es-care' ) ),
 				array( 'key' => 'privacy', 'title' => __( 'Privacy Policy', 'es-care' ) ),
-				array( 'key' => 'code-of-conduct', 'title' => __( 'Code of Conduct', 'es-care' ) ),
 				array( 'key' => 'equal-opportunity', 'title' => __( 'Equal Opportunity', 'es-care' ) ),
 			),
 			$pages
@@ -357,7 +492,29 @@ function escare_menu_has_unrelated_items( $menu_id ) {
 }
 
 /**
- * Delete unrelated leftovers from every nav menu on the site.
+ * Drop Code of Conduct from public menus. It belongs on the dashboard.
+ */
+function escare_remove_code_of_conduct_from_menus() {
+	$menus = wp_get_nav_menus();
+	if ( empty( $menus ) ) {
+		return;
+	}
+
+	foreach ( $menus as $menu ) {
+		$items = wp_get_nav_menu_items( $menu->term_id );
+		if ( empty( $items ) || ! is_array( $items ) ) {
+			continue;
+		}
+		foreach ( $items as $item ) {
+			if ( escare_menu_item_is_code_of_conduct( $item ) ) {
+				wp_delete_post( (int) $item->ID, true );
+			}
+		}
+	}
+}
+
+/**
+ * Drop unrelated leftovers from every nav menu on the site.
  */
 function escare_purge_unrelated_menu_items_everywhere() {
 	$menus = wp_get_nav_menus();

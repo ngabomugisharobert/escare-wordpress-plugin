@@ -106,6 +106,8 @@ class ESC_Portal_Plugin {
 				'resultCount'   => __( '%1$s of %2$s on this page (%3$s total)', 'es-care-portal' ),
 				'moderationOk'  => __( 'Approve this listing?', 'es-care-portal' ),
 				'verifyResend'  => __( 'Send another verification email?', 'es-care-portal' ),
+				'menuOpen'      => __( 'Open dashboard menu', 'es-care-portal' ),
+				'menuClose'     => __( 'Close dashboard menu', 'es-care-portal' ),
 			)
 		);
 	}

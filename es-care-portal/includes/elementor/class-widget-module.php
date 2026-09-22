@@ -106,7 +106,7 @@ class ESC_Portal_Elementor_Widget_Module extends ESC_Portal_Elementor_Widget_Bas
 					'membership'  => __( 'Employer: Membership', 'es-care-portal' ),
 					'users'       => __( 'Admin: Users', 'es-care-portal' ),
 					'applications'=> __( 'Admin: Applications', 'es-care-portal' ),
-					'contact'     => __( 'Admin: Contact messages', 'es-care-portal' ),
+					'conduct'     => __( 'Code of Conduct', 'es-care-portal' ),
 				),
 				'condition' => array(
 					'module' => 'dash_view',

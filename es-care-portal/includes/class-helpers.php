@@ -134,15 +134,108 @@ class ESC_Portal_Helpers {
 	}
 
 	/**
+	 * Published page ID for a portal slug, including Contact aliases.
+	 *
+	 * @param string $slug Portal page key.
+	 * @return int
+	 */
+	public static function find_page_id( $slug ) {
+		$found_id = 0;
+
+		if ( 'contact' === $slug ) {
+			$preferred = get_page_by_path( 'contact' );
+			if ( $preferred instanceof WP_Post && 'publish' === $preferred->post_status ) {
+				$found_id = (int) $preferred->ID;
+			}
+		}
+
+		if ( ! $found_id ) {
+			$id   = self::get_page_id( $slug );
+			$post = $id ? get_post( $id ) : null;
+
+			if ( $post && 'page' === $post->post_type && 'publish' === $post->post_status ) {
+				$found_id = (int) $post->ID;
+			}
+		}
+
+		if ( ! $found_id ) {
+			$paths = array( $slug );
+
+			if ( 'contact' === $slug ) {
+				$paths = array( 'contact', 'contact-us', 'contactus' );
+			} elseif ( 'login' === $slug ) {
+				$paths = array( 'sign-in', 'login' );
+			}
+
+			foreach ( $paths as $path ) {
+				$found = get_page_by_path( $path );
+				if ( $found instanceof WP_Post && 'publish' === $found->post_status ) {
+					$found_id = (int) $found->ID;
+					break;
+				}
+			}
+		}
+
+		if ( ! $found_id && 'contact' === $slug ) {
+			$matches = get_posts(
+				array(
+					'post_type'              => 'page',
+					'post_status'            => 'publish',
+					'title'                  => 'Contact Us',
+					'posts_per_page'         => 1,
+					'fields'                 => 'ids',
+					'update_post_meta_cache' => false,
+					'update_post_term_cache' => false,
+				)
+			);
+			if ( ! empty( $matches[0] ) ) {
+				$found_id = (int) $matches[0];
+			}
+		}
+
+		if ( $found_id ) {
+			self::remember_page_id( $slug, $found_id );
+		}
+
+		return $found_id;
+	}
+
+	/**
+	 * Store a resolved page ID so later lookups skip alias scans.
+	 *
+	 * @param string $slug Portal page key.
+	 * @param int    $id   Published page ID.
+	 */
+	public static function remember_page_id( $slug, $id ) {
+		$id = absint( $id );
+		if ( ! $id ) {
+			return;
+		}
+
+		$pages = get_option( self::PAGES_KEY, array() );
+		if ( ! is_array( $pages ) ) {
+			$pages = array();
+		}
+
+		if ( isset( $pages[ $slug ] ) && absint( $pages[ $slug ] ) === $id ) {
+			return;
+		}
+
+		$pages[ $slug ] = $id;
+		update_option( self::PAGES_KEY, $pages, false );
+	}
+
+	/**
 	 * @param string $slug Page key.
 	 * @param array  $args Query args.
 	 * @return string
 	 */
 	public static function get_page_url( $slug, $args = array() ) {
-		$id = self::get_page_id( $slug );
+		$id   = self::find_page_id( $slug );
+		$post = $id ? get_post( $id ) : null;
 
-		if ( $id ) {
-			$url = get_permalink( $id );
+		if ( $post && 'publish' === $post->post_status ) {
+			$url = get_permalink( $post );
 		} else {
 			$url = home_url( '/' );
 		}
@@ -176,17 +269,28 @@ class ESC_Portal_Helpers {
 	 * @return string
 	 */
 	public static function current_dashboard_view( $role = 'seeker' ) {
-		$view = isset( $_GET['esc_view'] ) ? sanitize_key( wp_unslash( $_GET['esc_view'] ) ) : 'home'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-
-		$allowed = array( 'home', 'apply', 'assessments', 'take', 'results', 'forms', 'password', 'request' );
-
-		if ( 'employer' === $role ) {
-			$allowed = array( 'home', 'profile', 'jobs', 'password', 'request', 'membership', 'post' );
-		} elseif ( 'admin' === $role ) {
-			$allowed = array( 'home', 'users', 'jobs', 'applications', 'contact' );
-		}
+		$view    = isset( $_GET['esc_view'] ) ? sanitize_key( wp_unslash( $_GET['esc_view'] ) ) : 'home'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$allowed = self::dashboard_views( $role );
 
 		return in_array( $view, $allowed, true ) ? $view : 'home';
+	}
+
+	/**
+	 * Allowed dashboard views for a portal role.
+	 *
+	 * @param string $role seeker|employer|admin.
+	 * @return string[]
+	 */
+	public static function dashboard_views( $role = 'seeker' ) {
+		if ( 'employer' === $role ) {
+			return array( 'home', 'profile', 'jobs', 'password', 'request', 'membership', 'post', 'conduct' );
+		}
+
+		if ( 'admin' === $role ) {
+			return array( 'home', 'users', 'jobs', 'applications', 'conduct' );
+		}
+
+		return array( 'home', 'apply', 'assessments', 'take', 'results', 'forms', 'password', 'request', 'conduct' );
 	}
 
 	/**
@@ -355,6 +459,16 @@ class ESC_Portal_Helpers {
 	 */
 	public static function is_portal_admin( $user = null ) {
 		return ESC_Portal_Users::is_admin( $user );
+	}
+
+	/**
+	 * Guests and job seekers may apply. Portal admin and employer sessions may not.
+	 *
+	 * @param object|null|false $user Portal user. false uses the current portal session.
+	 * @return bool
+	 */
+	public static function can_apply_to_jobs( $user = false ) {
+		return ESC_Portal_Users::can_apply_to_jobs( $user );
 	}
 
 	/**

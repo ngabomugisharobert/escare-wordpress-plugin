@@ -15,7 +15,19 @@ $is_emp   = $user && class_exists( 'ESC_Portal_Users' ) && ESC_Portal_Users::is_
 $is_seek  = $user && class_exists( 'ESC_Portal_Users' ) && ESC_Portal_Users::is_seeker( $user );
 ?>
 <section class="escare-hero" aria-label="<?php esc_attr_e( 'Introduction', 'es-care' ); ?>">
-	<div class="escare-hero-media" aria-hidden="true"></div>
+	<div class="escare-hero-media" aria-hidden="true">
+		<div class="escare-hero-slides" data-escare-hero-slides>
+			<div class="escare-hero-slide is-active">
+				<img src="<?php echo esc_url( escare_asset( 'img/hero-slide-1.jpg' ) ); ?>" alt="" width="1024" height="682" decoding="async" fetchpriority="high">
+			</div>
+			<div class="escare-hero-slide">
+				<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-src="<?php echo esc_url( escare_asset( 'img/hero-slide-2.jpg' ) ); ?>" alt="" width="1024" height="682" decoding="async">
+			</div>
+			<div class="escare-hero-slide">
+				<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-src="<?php echo esc_url( escare_asset( 'img/hero-slide-3.jpg' ) ); ?>" alt="" width="1024" height="682" decoding="async">
+			</div>
+		</div>
+	</div>
 	<div class="escare-hero-copy">
 		<p class="escare-hero-brand">E&amp;S Care Services</p>
 		<h1 class="escare-hero-title"><?php esc_html_e( 'Care you can trust', 'es-care' ); ?></h1>
@@ -60,7 +72,7 @@ $is_seek  = $user && class_exists( 'ESC_Portal_Users' ) && ESC_Portal_Users::is_
 			<p><?php esc_html_e( 'Tell us the role, shift, and setting. We match screened staff for temp, per diem, contract, and ongoing assignments so care can continue without a long recruiting delay.', 'es-care' ); ?></p>
 		</div>
 		<figure class="escare-story-photo">
-			<img src="<?php echo esc_url( escare_asset( 'img/companionship.jpg' ) ); ?>" alt="<?php esc_attr_e( 'Older adults and caregivers spending time together at home', 'es-care' ); ?>" width="1600" height="1067">
+			<img src="<?php echo esc_url( escare_asset( 'img/companionship.jpg' ) ); ?>" alt="<?php esc_attr_e( 'Older adults and caregivers spending time together at home', 'es-care' ); ?>" width="1600" height="1067" loading="lazy" decoding="async">
 		</figure>
 	</div>
 </section>
@@ -114,7 +126,7 @@ $is_seek  = $user && class_exists( 'ESC_Portal_Users' ) && ESC_Portal_Users::is_
 <section class="escare-path escare-path--seeker">
 	<div class="escare-wrap escare-path-inner escare-path-inner--media">
 		<figure>
-			<img src="<?php echo esc_url( escare_asset( 'img/caregiver-visit.jpg' ) ); ?>" alt="<?php esc_attr_e( 'A caregiver visiting with an older adult', 'es-care' ); ?>" width="1600" height="1067">
+			<img src="<?php echo esc_url( escare_asset( 'img/caregiver-visit.jpg' ) ); ?>" alt="<?php esc_attr_e( 'A caregiver visiting with an older adult', 'es-care' ); ?>" width="1600" height="1067" loading="lazy" decoding="async">
 		</figure>
 		<div>
 			<p class="escare-eyebrow"><?php esc_html_e( 'For job seekers', 'es-care' ); ?></p>
