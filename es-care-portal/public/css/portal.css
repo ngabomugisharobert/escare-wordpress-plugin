@@ -93,7 +93,10 @@
 }
 
 .esc-card--narrow {
-	max-width: 480px;
+	max-width: 40rem;
+	width: 100%;
+	margin-left: auto;
+	margin-right: auto;
 }
 
 .esc-card--register {
@@ -135,6 +138,13 @@
 
 .esc-portal-wrap--auth .esc-foot {
 	text-align: center;
+}
+
+.esc-form--compact {
+	margin-top: 1.25rem;
+	padding-top: 1.25rem;
+	border-top: 1px solid var(--esc-line);
+	text-align: left;
 }
 
 .esc-portal-wrap--auth .esc-actions,
@@ -762,6 +772,36 @@ body.esc-portal-auth .wp-block-post-content > * {
 	color: var(--esc-ink);
 }
 
+.esc-dash-panel--centered {
+	width: min(40rem, 100%);
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.esc-dash-panel--centered .esc-dash-title {
+	text-align: center;
+}
+
+.esc-dash-panel--centered .esc-dash-copy {
+	margin-left: auto;
+	margin-right: auto;
+	text-align: center;
+}
+
+.esc-dash-panel--centered .esc-dash-copy ul {
+	display: inline-block;
+	text-align: left;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.esc-dash-panel--centered .esc-card,
+.esc-dash-panel--centered .esc-form.esc-card {
+	width: 100%;
+	max-width: none;
+	text-align: left;
+}
+
 .esc-dash-title {
 	margin: 0 0 0.7rem;
 	color: var(--esc-navy);
@@ -812,6 +852,8 @@ body.esc-portal-auth .wp-block-post-content > * {
 .esc-tiles--account {
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 	max-width: 42rem;
+	margin-left: auto;
+	margin-right: auto;
 }
 
 .esc-tile {

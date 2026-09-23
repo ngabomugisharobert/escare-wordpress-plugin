@@ -5,7 +5,7 @@ title: "Website Development Quotation"
 **BlueField Technology LLC**  
 3919 Boulevard Rd SE  
 Olympia, WA 98501  
-Prepared for: **E&S Care Service LLC**  
+Prepared for: **E&S Care Services LLC**  
 3917 Boulevard Rd SE, Olympia, WA 98501  
 Phone: 360-742-8095 · Public email: info@escareservices.com  
 
@@ -21,7 +21,7 @@ Phone: 360-742-8095 · Public email: info@escareservices.com
 
 ## 1. Project summary
 
-Design, build, and deliver a branded WordPress website for E&S Care Service LLC, including a custom marketing theme and a custom **ES Care Portal** plugin for job seekers, employers, applications, assessments, employment forms, service requests, and public contact.
+Design, build, and deliver a branded WordPress website for E&S Care Services LLC, including a custom marketing theme and a custom **ES Care Portal** plugin for job seekers, employers, applications, assessments, employment forms, service requests, and public contact.
 
 ---
 
@@ -139,9 +139,9 @@ Exact dates depend on content approval, hosting access, and payment of the depos
 
 ## 8. Acceptance
 
-By signing below, E&S Care Service LLC accepts this quotation and authorizes BlueField Technology LLC to proceed under the terms above.
+By signing below, E&S Care Services LLC accepts this quotation and authorizes BlueField Technology LLC to proceed under the terms above.
 
-**Client — E&S Care Service LLC**
+**Client — E&S Care Services LLC**
 
 Name: _______________________________  
 Title: _______________________________  
@@ -157,4 +157,4 @@ Date: _______________________________
 
 ---
 
-*This quotation is confidential and intended only for E&S Care Service LLC. Pricing and terms may be revised by written agreement.*
+*This quotation is confidential and intended only for E&S Care Services LLC. Pricing and terms may be revised by written agreement.*

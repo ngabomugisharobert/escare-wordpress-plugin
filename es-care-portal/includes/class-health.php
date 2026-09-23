@@ -76,11 +76,12 @@ class ESC_Portal_Health {
 	 * @return array
 	 */
 	public static function snapshot() {
-		$mail    = ESC_Portal_Mail_Queue::counts();
-		$storage = ESC_Portal_Uploads::health();
-		$cron    = wp_next_scheduled( ESC_Portal_Mail_Queue::CRON_HOOK );
-		$retain  = wp_next_scheduled( ESC_Portal_Privacy::CRON_HOOK );
-		$last    = get_option( 'esc_portal_retention_last_run', array() );
+		$mail     = ESC_Portal_Mail_Queue::counts();
+		$storage  = ESC_Portal_Uploads::health();
+		$cron     = wp_next_scheduled( ESC_Portal_Mail_Queue::CRON_HOOK );
+		$retain   = wp_next_scheduled( ESC_Portal_Privacy::CRON_HOOK );
+		$last     = get_option( 'esc_portal_retention_last_run', array() );
+		$settings = ESC_Portal_Helpers::get_settings();
 
 		return array(
 			'schema_version'     => (int) get_option( ESC_Portal_Schema::SCHEMA_KEY, 0 ),
@@ -96,6 +97,7 @@ class ESC_Portal_Health {
 			'storage_path'       => isset( $storage['path'] ) ? $storage['path'] : '',
 			'storage_private'    => ! empty( $storage['outside_uploads'] ),
 			'http_denied'        => ! empty( $storage['http_denied'] ),
+			'smtp_enabled'       => ! empty( $settings['smtp_enabled'] ),
 			'smtp_conflicts'     => ESC_Portal_Emails::conflicting_plugins(),
 			'migrating'          => (bool) get_transient( 'esc_portal_migrating' ),
 			'identity_purged'    => get_option( 'esc_portal_identity_purged', array() ),

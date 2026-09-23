@@ -475,7 +475,7 @@ class ESC_Portal_Admin {
 				'color_tile'           => self::sanitize_hex( isset( $_POST['color_tile'] ) ? wp_unslash( $_POST['color_tile'] ) : '', $defaults['color_tile'] ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 				'color_cta'            => self::sanitize_hex( isset( $_POST['color_cta'] ) ? wp_unslash( $_POST['color_cta'] ) : '', $defaults['color_cta'] ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 				'tile_seeker'          => self::sanitize_tile_list( isset( $_POST['tile_seeker'] ) ? wp_unslash( $_POST['tile_seeker'] ) : array(), array( 'apply', 'assessments', 'results', 'forms' ) ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-				'tile_employer'        => self::sanitize_tile_list( isset( $_POST['tile_employer'] ) ? wp_unslash( $_POST['tile_employer'] ) : array(), array( 'post', 'jobs', 'profile', 'membership' ) ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+				'tile_employer'        => self::sanitize_tile_list( isset( $_POST['tile_employer'] ) ? wp_unslash( $_POST['tile_employer'] ) : array(), array( 'post', 'jobs', 'profile' ) ), // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 				'retention_years'      => max( 1, min( 10, isset( $_POST['retention_years'] ) ? absint( wp_unslash( $_POST['retention_years'] ) ) : 3 ) ),
 				'delete_data_on_uninstall' => isset( $_POST['delete_data_on_uninstall'] ) ? 1 : 0,
 			)

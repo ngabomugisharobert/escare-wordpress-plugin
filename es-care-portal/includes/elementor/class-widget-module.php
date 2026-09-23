@@ -103,7 +103,6 @@ class ESC_Portal_Elementor_Widget_Module extends ESC_Portal_Elementor_Widget_Bas
 					'profile'     => __( 'Employer: Profile', 'es-care-portal' ),
 					'jobs'        => __( 'Employer: Jobs', 'es-care-portal' ),
 					'post'        => __( 'Employer: Post job', 'es-care-portal' ),
-					'membership'  => __( 'Employer: Membership', 'es-care-portal' ),
 					'users'       => __( 'Admin: Users', 'es-care-portal' ),
 					'applications'=> __( 'Admin: Applications', 'es-care-portal' ),
 					'conduct'     => __( 'Code of Conduct', 'es-care-portal' ),

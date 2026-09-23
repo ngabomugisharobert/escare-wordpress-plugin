@@ -7,7 +7,7 @@
 
 defined( 'ABSPATH' ) || exit;
 ?>
-<section class="esc-dash-panel">
+<section class="esc-dash-panel esc-dash-panel--centered">
 	<h2 class="esc-dash-title"><?php esc_html_e( 'Membership', 'es-care-portal' ); ?></h2>
 	<p class="esc-dash-copy"><?php esc_html_e( 'Partner with ES Care Services to reach qualified care professionals. Tell us about your staffing needs and we will help you choose the right plan.', 'es-care-portal' ); ?></p>
 

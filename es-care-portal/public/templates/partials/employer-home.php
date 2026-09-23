@@ -23,11 +23,6 @@ $manage = array(
 		'label' => __( 'Edit Profile', 'es-care-portal' ),
 		'icon'  => '<svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="currentColor" stroke-width="3"><path d="M14 10h28l12 12v32H14z"/><path d="M42 10v12h12"/><path d="M22 38l6 6 14-14"/></svg>',
 	),
-	'membership' => array(
-		'url'   => ESC_Portal_Helpers::dashboard_url( 'membership' ),
-		'label' => __( 'Membership', 'es-care-portal' ),
-		'icon'  => '<svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="currentColor" stroke-width="3"><circle cx="22" cy="22" r="8"/><circle cx="42" cy="24" r="7"/><path d="M6 52c2-10 8-15 16-15s14 5 16 15"/><path d="M34 40c4-2 9-1 14 5 2 3 3 6 4 7"/></svg>',
-	),
 );
 
 $enabled = ESC_Portal_Helpers::public_settings()['tile_employer'];

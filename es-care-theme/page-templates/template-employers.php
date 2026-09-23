@@ -21,7 +21,7 @@ get_header();
 <section class="escare-section">
 	<div class="escare-wrap">
 		<div class="escare-prose">
-		<p><?php esc_html_e( 'Share the role, credential, dates, and setting. You can send a staffing request without an account, or register as an employer to post jobs in the portal after email verification and administrator approval.', 'es-care' ); ?></p>
+		<p><?php esc_html_e( 'Share the role, credential, dates, and setting. You can send a staffing request without an account, or register as an employer to post jobs in the portal after activating your account from the email we send.', 'es-care' ); ?></p>
 		<h2><?php esc_html_e( 'What to include in a request', 'es-care' ); ?></h2>
 		<ul>
 			<li><?php esc_html_e( 'Facility name and a contact who can confirm the shift', 'es-care' ); ?></li>

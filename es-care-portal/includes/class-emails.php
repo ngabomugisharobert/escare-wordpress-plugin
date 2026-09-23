@@ -49,6 +49,7 @@ class ESC_Portal_Emails {
 		$phpmailer->SMTPAuth    = ! empty( $settings['smtp_username'] );
 		$phpmailer->Username    = isset( $settings['smtp_username'] ) ? $settings['smtp_username'] : '';
 		$phpmailer->Password    = $password;
+		$phpmailer->Timeout     = 20;
 		$phpmailer->SMTPAutoTLS = false;
 
 		$encryption            = isset( $settings['smtp_encryption'] ) ? sanitize_key( $settings['smtp_encryption'] ) : '';
@@ -99,7 +100,15 @@ class ESC_Portal_Emails {
 	 * @return bool
 	 */
 	public static function send( $to, $subject, $body, $headers = array() ) {
-		return (bool) ESC_Portal_Mail_Queue::enqueue( $to, $subject, $body, $headers );
+		$id = ESC_Portal_Mail_Queue::enqueue( $to, $subject, $body, $headers );
+
+		if ( $id ) {
+			return true;
+		}
+
+		ESC_Portal_Health::log( 'warning', 'mail', 'Mail queue unavailable; sending immediately' );
+
+		return self::send_now( $to, $subject, $body, $headers );
 	}
 
 	/**
@@ -113,7 +122,14 @@ class ESC_Portal_Emails {
 	 */
 	public static function send_now( $to, $subject, $body, $headers = array() ) {
 		self::$sending = true;
-		$sent          = wp_mail( $to, $subject, $body, $headers );
+
+		try {
+			$sent = wp_mail( $to, $subject, $body, $headers );
+		} catch ( Exception $e ) {
+			$sent = false;
+			ESC_Portal_Mail_Queue::capture_failure( new WP_Error( 'esc_mail', $e->getMessage() ) );
+		}
+
 		self::$sending = false;
 
 		return (bool) $sent;
@@ -335,7 +351,7 @@ class ESC_Portal_Emails {
 			'reset-password',
 			array(
 				'key'   => $key,
-				'login' => rawurlencode( $user->email ),
+				'login' => $user->email,
 			)
 		);
 
@@ -650,7 +666,7 @@ class ESC_Portal_Emails {
 	}
 
 	/**
-	 * Single-use employer email verification.
+	 * Single-use email verification.
 	 *
 	 * @param object $user  User.
 	 * @param string $token Raw token.
@@ -658,84 +674,83 @@ class ESC_Portal_Emails {
 	public static function verify_email( $user, $token ) {
 		$link = add_query_arg(
 			array(
-				'action' => 'esc_verify_email',
-				'uid'    => (int) $user->id,
-				'token'  => $token,
+				'esc_verify' => 1,
+				'uid'        => (int) $user->id,
+				'token'      => $token,
 			),
-			admin_url( 'admin-post.php' )
+			ESC_Portal_Helpers::get_page_url( 'login' )
 		);
 
 		$body  = '<p>' . sprintf(
 			esc_html__( 'Hello %s,', 'es-care-portal' ),
 			esc_html( $user->first_name ? $user->first_name : $user->display_name )
 		) . '</p>';
-		$body .= '<p>' . esc_html__( 'Confirm this email address to continue employer registration. The link expires in 24 hours.', 'es-care-portal' ) . '</p>';
-		$body .= '<p><a href="' . esc_url( $link ) . '">' . esc_html__( 'Verify email address', 'es-care-portal' ) . '</a></p>';
+		$body .= '<p>' . esc_html__( 'Use the link below to activate your account. It expires in 24 hours.', 'es-care-portal' ) . '</p>';
+		$body .= '<p><a href="' . esc_url( $link ) . '">' . esc_html__( 'Activate your account', 'es-care-portal' ) . '</a></p>';
 
 		self::send(
 			$user->email,
-			__( 'Verify your employer email', 'es-care-portal' ),
-			self::wrap( __( 'Verify your email', 'es-care-portal' ), $body ),
+			__( 'Activate your account', 'es-care-portal' ),
+			self::wrap( __( 'Activate your account', 'es-care-portal' ), $body ),
 			self::headers()
 		);
 	}
 
 	/**
-	 * Notify staff that an employer is waiting for approval.
+	 * Notify the member and staff that an account deletion was requested.
 	 *
-	 * @param object $user User.
+	 * @param object $user Portal user.
 	 */
-	public static function employer_pending_admin( $user ) {
+	public static function account_deletion_requested( $user ) {
+		if ( ! $user || empty( $user->email ) || ! is_email( $user->email ) ) {
+			return;
+		}
+
+		$name = $user->first_name ? $user->first_name : $user->display_name;
+		$body = '<p>' . sprintf(
+			esc_html__( 'Hello %s,', 'es-care-portal' ),
+			esc_html( $name )
+		) . '</p>';
+		$body .= '<p>' . esc_html__( 'We received your request to delete this portal account. An administrator will review it and follow up if needed.', 'es-care-portal' ) . '</p>';
+
+		self::send(
+			$user->email,
+			__( 'We received your account deletion request', 'es-care-portal' ),
+			self::wrap( __( 'Deletion request received', 'es-care-portal' ), $body ),
+			self::headers()
+		);
+
 		$settings = ESC_Portal_Helpers::get_settings();
-		$staff    = isset( $settings['notification_email'] ) ? $settings['notification_email'] : '';
+		$staff    = ! empty( $settings['notification_email'] ) ? $settings['notification_email'] : '';
 
 		if ( ! $staff || ! is_email( $staff ) ) {
 			return;
 		}
 
-		$body  = '<p>' . sprintf(
-			esc_html__( '%1$s (%2$s) verified an employer account for %3$s and is waiting for approval.', 'es-care-portal' ),
-			esc_html( $user->display_name ),
-			esc_html( $user->email ),
-			esc_html( $user->company_name )
-		) . '</p>';
-		$body .= '<p><a href="' . esc_url( ESC_Portal_Helpers::dashboard_url( 'users' ) ) . '">' . esc_html__( 'Review dashboard users', 'es-care-portal' ) . '</a></p>';
+		$details  = '<p>' . esc_html__( 'A portal user requested that their account be deleted.', 'es-care-portal' ) . '</p>';
+		$details .= '<p><strong>' . esc_html__( 'Name:', 'es-care-portal' ) . '</strong> ' . esc_html( $user->display_name ) . '</p>';
+		$details .= '<p><strong>' . esc_html__( 'Email:', 'es-care-portal' ) . '</strong> ' . esc_html( $user->email ) . '</p>';
+
+		if ( ! empty( $user->phone ) ) {
+			$details .= '<p><strong>' . esc_html__( 'Phone:', 'es-care-portal' ) . '</strong> ' . esc_html( $user->phone ) . '</p>';
+		}
+
+		$details .= '<p><strong>' . esc_html__( 'Account type:', 'es-care-portal' ) . '</strong> ' . esc_html( ESC_Portal_Users::role_label( $user->role ) ) . '</p>';
+
+		if ( ! empty( $user->company_name ) ) {
+			$details .= '<p><strong>' . esc_html__( 'Company:', 'es-care-portal' ) . '</strong> ' . esc_html( $user->company_name ) . '</p>';
+		}
+
+		$details .= '<p><a href="' . esc_url( ESC_Portal_Helpers::dashboard_url( 'users' ) ) . '">' . esc_html__( 'Review dashboard users', 'es-care-portal' ) . '</a></p>';
 
 		self::send(
 			$staff,
-			__( 'Employer account awaiting approval', 'es-care-portal' ),
-			self::wrap( __( 'Employer approval needed', 'es-care-portal' ), $body ),
-			self::headers()
-		);
-	}
-
-	/**
-	 * @param object $user   User.
-	 * @param string $status approved|rejected.
-	 */
-	public static function employer_decision( $user, $status ) {
-		if ( ! $user || ! is_email( $user->email ) ) {
-			return;
-		}
-
-		$approved = 'approved' === $status;
-		$body     = '<p>' . sprintf(
-			esc_html__( 'Hello %s,', 'es-care-portal' ),
-			esc_html( $user->first_name ? $user->first_name : $user->display_name )
-		) . '</p>';
-		$body    .= '<p>' . ( $approved
-			? esc_html__( 'Your employer account has been approved. You can sign in and submit jobs for review.', 'es-care-portal' )
-			: esc_html__( 'Your employer account was not approved. Contact ES Care Services if you believe this is a mistake.', 'es-care-portal' )
-		) . '</p>';
-
-		if ( $approved ) {
-			$body .= '<p><a href="' . esc_url( ESC_Portal_Helpers::get_page_url( 'login' ) ) . '">' . esc_html__( 'Sign in', 'es-care-portal' ) . '</a></p>';
-		}
-
-		self::send(
-			$user->email,
-			$approved ? __( 'Employer account approved', 'es-care-portal' ) : __( 'Employer account update', 'es-care-portal' ),
-			self::wrap( $approved ? __( 'Account approved', 'es-care-portal' ) : __( 'Account update', 'es-care-portal' ), $body ),
+			sprintf(
+				/* translators: %s: user email */
+				__( 'Account deletion request: %s', 'es-care-portal' ),
+				$user->email
+			),
+			self::wrap( __( 'Account deletion request', 'es-care-portal' ), $details ),
 			self::headers()
 		);
 	}

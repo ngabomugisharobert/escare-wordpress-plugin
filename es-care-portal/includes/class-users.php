@@ -69,7 +69,7 @@ class ESC_Portal_Users {
 	 */
 	public static function statuses() {
 		return array(
-			self::STATUS_PENDING_EMAIL => __( 'Pending email', 'es-care-portal' ),
+			self::STATUS_PENDING_EMAIL => __( 'Pending activation', 'es-care-portal' ),
 			self::STATUS_PENDING_ADMIN => __( 'Pending approval', 'es-care-portal' ),
 			self::STATUS_ACTIVE        => __( 'Active', 'es-care-portal' ),
 			self::STATUS_DISABLED      => __( 'Disabled', 'es-care-portal' ),
@@ -573,14 +573,44 @@ class ESC_Portal_Users {
 		}
 
 		if ( self::STATUS_PENDING_EMAIL === $user->status ) {
-			return new WP_Error( 'esc_pending_email', __( 'Please verify your email address before signing in.', 'es-care-portal' ) );
-		}
-
-		if ( self::STATUS_PENDING_ADMIN === $user->status ) {
-			return new WP_Error( 'esc_pending_admin', __( 'Your employer account is waiting for administrator approval.', 'es-care-portal' ) );
+			return new WP_Error( 'esc_pending_email', __( 'Please activate your account from the email we sent before signing in.', 'es-care-portal' ) );
 		}
 
 		return $user;
+	}
+
+	/**
+	 * Whether this account has a pending deletion request.
+	 *
+	 * @param int $user_id User ID.
+	 * @return bool
+	 */
+	public static function deletion_requested( $user_id ) {
+		return (bool) self::get_meta( absint( $user_id ), 'deletion_requested_at', '' );
+	}
+
+	/**
+	 * Activate accounts that were waiting for administrator approval.
+	 *
+	 * @return int Rows updated.
+	 */
+	public static function activate_awaiting_approval() {
+		global $wpdb;
+
+		if ( ! self::tables_exist() ) {
+			return 0;
+		}
+
+		return (int) $wpdb->update(
+			self::table(),
+			array(
+				'status'     => self::STATUS_ACTIVE,
+				'updated_at' => current_time( 'mysql' ),
+			),
+			array( 'status' => self::STATUS_PENDING_ADMIN ),
+			array( '%s', '%s' ),
+			array( '%s' )
+		);
 	}
 
 	/**

@@ -21,7 +21,7 @@ get_header();
 <section class="escare-section">
 	<div class="escare-wrap">
 		<div class="escare-prose">
-		<p><?php esc_html_e( 'E&S Care Service LLC is an equal opportunity organization. We recruit, place, and work with people without regard to race, color, national origin, religion, sex, gender identity, sexual orientation, age, disability, veteran status, or any other status protected by applicable law.', 'es-care' ); ?></p>
+		<p><?php esc_html_e( 'E&S Care Services LLC is an equal opportunity organization. We recruit, place, and work with people without regard to race, color, national origin, religion, sex, gender identity, sexual orientation, age, disability, veteran status, or any other status protected by applicable law.', 'es-care' ); ?></p>
 		<p><?php esc_html_e( 'Employment decisions and staffing requests are based on qualifications, availability, and the lawful requirements of the role. Harassment and retaliation are not tolerated.', 'es-care' ); ?></p>
 		<p><?php echo esc_html( sprintf( __( 'To raise a concern, contact %s.', 'es-care' ), escare_email() ) ); ?></p>
 		</div>

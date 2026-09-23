@@ -41,8 +41,8 @@ class ESC_Portal_Auth {
 		self::bind( 'esc_admin_delete_application', array( __CLASS__, 'handle_admin_delete_application' ) );
 		self::bind( 'esc_verify_email', array( __CLASS__, 'handle_verify_email' ) );
 		self::bind( 'esc_resend_verification', array( __CLASS__, 'handle_resend_verification' ) );
-		self::bind( 'esc_approve_employer', array( __CLASS__, 'handle_approve_employer' ) );
-		self::bind( 'esc_reject_employer', array( __CLASS__, 'handle_reject_employer' ) );
+		self::bind( 'esc_resend_verification_public', array( __CLASS__, 'handle_resend_verification_public' ) );
+		add_action( 'template_redirect', array( __CLASS__, 'maybe_handle_public_verify' ) );
 		self::bind( 'esc_moderate_job', array( __CLASS__, 'handle_moderate_job' ) );
 		self::bind( 'esc_change_password', array( 'ESC_Portal_Account', 'handle_change_password' ) );
 		self::bind( 'esc_delete_account', array( 'ESC_Portal_Account', 'handle_delete_account' ) );
@@ -232,9 +232,7 @@ class ESC_Portal_Auth {
 			self::fail_register( $fallback, 'weak-password', $sticky );
 		}
 
-		$status = ESC_Portal_Users::ROLE_EMPLOYER === $role
-			? ESC_Portal_Users::STATUS_PENDING_EMAIL
-			: ESC_Portal_Users::STATUS_ACTIVE;
+		$status = ESC_Portal_Users::STATUS_PENDING_EMAIL;
 
 		$user_id = ESC_Portal_Users::create(
 			array(
@@ -255,17 +253,13 @@ class ESC_Portal_Auth {
 		}
 
 		ESC_Portal_Helpers::forget_form();
+		self::issue_verification( $user_id );
 
-		if ( ESC_Portal_Users::ROLE_EMPLOYER === $role ) {
-			self::issue_verification( $user_id );
-			ESC_Portal_Helpers::redirect_notice( ESC_Portal_Helpers::get_page_url( 'login' ), 'verify-email', 'info' );
+		if ( $redirect ) {
+			ESC_Portal_Users::update_meta( $user_id, 'post_verify_redirect', $redirect );
 		}
 
-		ESC_Portal_Emails::welcome( $user_id );
-		self::login_user( $user_id, true );
-
-		$dest = $redirect ? $redirect : ESC_Portal_Helpers::get_page_url( 'dashboard' );
-		ESC_Portal_Helpers::redirect_notice( $dest, 'registered', 'success' );
+		ESC_Portal_Helpers::redirect_notice( ESC_Portal_Helpers::get_page_url( 'login' ), 'verify-email', 'info' );
 	}
 
 	/**
@@ -307,7 +301,6 @@ class ESC_Portal_Auth {
 			$map = array(
 				'esc_disabled'      => 'account-disabled',
 				'esc_pending_email' => 'pending-email',
-				'esc_pending_admin' => 'pending-admin',
 			);
 			$code = isset( $map[ $user->get_error_code() ] ) ? $map[ $user->get_error_code() ] : 'invalid-login';
 			ESC_Portal_Helpers::remember_form( 'login', array( 'email' => $email ) );
@@ -623,6 +616,17 @@ class ESC_Portal_Auth {
 	}
 
 	/**
+	 * Handle a public verification link on the sign-in page.
+	 */
+	public static function maybe_handle_public_verify() {
+		if ( empty( $_GET['esc_verify'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+
+		self::handle_verify_email();
+	}
+
+	/**
 	 * Complete email verification.
 	 */
 	public static function handle_verify_email() {
@@ -635,8 +639,8 @@ class ESC_Portal_Auth {
 			ESC_Portal_Helpers::redirect_notice( $login, 'reset-invalid', 'error' );
 		}
 
-		$hash    = (string) ESC_Portal_Users::get_meta( $user->id, 'email_verify_hash', '' );
-		$expires = (int) ESC_Portal_Users::get_meta( $user->id, 'email_verify_expires', 0 );
+		$hash     = (string) ESC_Portal_Users::get_meta( $user->id, 'email_verify_hash', '' );
+		$expires  = (int) ESC_Portal_Users::get_meta( $user->id, 'email_verify_expires', 0 );
 		$expected = hash_hmac( 'sha256', $token, wp_salt( 'auth' ) );
 
 		if ( ! $hash || time() > $expires || ! hash_equals( $hash, $expected ) ) {
@@ -646,14 +650,47 @@ class ESC_Portal_Auth {
 		ESC_Portal_Users::update_meta( $user->id, 'email_verify_hash', '' );
 		ESC_Portal_Users::update_meta( $user->id, 'email_verify_expires', '' );
 		ESC_Portal_Users::update_meta( $user->id, 'email_verified_at', current_time( 'mysql' ) );
-		ESC_Portal_Users::update( $user->id, array( 'status' => ESC_Portal_Users::STATUS_PENDING_ADMIN ) );
-		ESC_Portal_Emails::employer_pending_admin( ESC_Portal_Users::get( $user->id ) );
+		ESC_Portal_Users::update( $user->id, array( 'status' => ESC_Portal_Users::STATUS_ACTIVE ) );
+		ESC_Portal_Emails::welcome( $user->id );
+		self::login_user( $user->id, true );
 
-		ESC_Portal_Helpers::redirect_notice( $login, 'email-verified', 'success' );
+		$dest = (string) ESC_Portal_Users::get_meta( $user->id, 'post_verify_redirect', '' );
+		ESC_Portal_Users::update_meta( $user->id, 'post_verify_redirect', '' );
+
+		if ( ! $dest ) {
+			$dest = ESC_Portal_Helpers::get_page_url( 'dashboard' );
+		}
+
+		ESC_Portal_Helpers::redirect_notice( $dest, 'email-confirmed', 'success' );
 	}
 
 	/**
-	 * Resend employer verification from the admin dashboard.
+	 * Public resend of a pending verification email.
+	 */
+	public static function handle_resend_verification_public() {
+		$fallback = ESC_Portal_Helpers::get_page_url( 'login' );
+
+		if ( ! isset( $_POST['esc_resend_public_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['esc_resend_public_nonce'] ) ), 'esc_resend_verification_public' ) || ! ESC_Portal_CSRF::verify() ) {
+			ESC_Portal_Helpers::redirect_notice( $fallback, 'nonce', 'error' );
+		}
+
+		$email = isset( $_POST['esc_email'] ) ? sanitize_email( wp_unslash( $_POST['esc_email'] ) ) : '';
+
+		if ( ! ESC_Portal_Rate_Limit::allow( 'verify_resend', $email ) ) {
+			ESC_Portal_Helpers::redirect_notice( $fallback, 'verify-resent', 'success' );
+		}
+
+		$user = $email ? ESC_Portal_Users::get_by_email( $email ) : null;
+
+		if ( $user && ESC_Portal_Users::STATUS_PENDING_EMAIL === $user->status ) {
+			self::issue_verification( $user->id );
+		}
+
+		ESC_Portal_Helpers::redirect_notice( $fallback, 'verify-resent', 'success' );
+	}
+
+	/**
+	 * Resend activation email from the admin dashboard.
 	 */
 	public static function handle_resend_verification() {
 		$dest = ESC_Portal_Helpers::dashboard_url( 'users' );
@@ -676,55 +713,6 @@ class ESC_Portal_Auth {
 
 		self::issue_verification( $user->id );
 		ESC_Portal_Helpers::redirect_notice( $dest, 'verify-resent', 'success' );
-	}
-
-	/**
-	 * Approve a verified employer.
-	 */
-	public static function handle_approve_employer() {
-		$dest = ESC_Portal_Helpers::dashboard_url( 'users' );
-
-		if ( ! self::is_logged_in() || ! ESC_Portal_Users::is_admin() ) {
-			ESC_Portal_Helpers::redirect_notice( $dest, 'not-allowed', 'error' );
-		}
-
-		$user_id = isset( $_POST['esc_user_id'] ) ? absint( $_POST['esc_user_id'] ) : 0;
-		$nonce   = isset( $_POST['esc_approve_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_approve_nonce'] ) ) : '';
-		$user    = $user_id ? ESC_Portal_Users::get( $user_id ) : null;
-
-		if ( ! $user || ! wp_verify_nonce( $nonce, 'esc_approve_employer_' . $user_id ) ) {
-			ESC_Portal_Helpers::redirect_notice( $dest, 'nonce', 'error' );
-		}
-
-		ESC_Portal_Users::update( $user->id, array( 'status' => ESC_Portal_Users::STATUS_ACTIVE ) );
-		ESC_Portal_Users::update_meta( $user->id, 'approved_at', current_time( 'mysql' ) );
-		ESC_Portal_Emails::employer_decision( ESC_Portal_Users::get( $user->id ), 'approved' );
-
-		ESC_Portal_Helpers::redirect_notice( $dest, 'employer-approved', 'success' );
-	}
-
-	/**
-	 * Reject a pending employer.
-	 */
-	public static function handle_reject_employer() {
-		$dest = ESC_Portal_Helpers::dashboard_url( 'users' );
-
-		if ( ! self::is_logged_in() || ! ESC_Portal_Users::is_admin() ) {
-			ESC_Portal_Helpers::redirect_notice( $dest, 'not-allowed', 'error' );
-		}
-
-		$user_id = isset( $_POST['esc_user_id'] ) ? absint( $_POST['esc_user_id'] ) : 0;
-		$nonce   = isset( $_POST['esc_reject_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_reject_nonce'] ) ) : '';
-		$user    = $user_id ? ESC_Portal_Users::get( $user_id ) : null;
-
-		if ( ! $user || ! wp_verify_nonce( $nonce, 'esc_reject_employer_' . $user_id ) ) {
-			ESC_Portal_Helpers::redirect_notice( $dest, 'nonce', 'error' );
-		}
-
-		ESC_Portal_Users::update( $user->id, array( 'status' => ESC_Portal_Users::STATUS_DISABLED ) );
-		ESC_Portal_Emails::employer_decision( ESC_Portal_Users::get( $user->id ), 'rejected' );
-
-		ESC_Portal_Helpers::redirect_notice( $dest, 'employer-rejected', 'success' );
 	}
 
 	/**

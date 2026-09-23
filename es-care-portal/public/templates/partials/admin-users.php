@@ -71,8 +71,7 @@ $current_id  = ESC_Portal_Auth::current_user_id();
 					<?php foreach ( $users as $row ) : ?>
 						<?php
 						$can_delete    = (int) $row->id !== $current_id;
-						$pending_email = ESC_Portal_Users::ROLE_EMPLOYER === $row->role && ESC_Portal_Users::STATUS_PENDING_EMAIL === $row->status;
-						$pending_admin = ESC_Portal_Users::ROLE_EMPLOYER === $row->role && ESC_Portal_Users::STATUS_PENDING_ADMIN === $row->status;
+						$pending_email = ESC_Portal_Users::STATUS_PENDING_EMAIL === $row->status;
 						?>
 						<tr
 							data-esc-name="<?php echo esc_attr( strtolower( $row->display_name ) ); ?>"
@@ -95,6 +94,9 @@ $current_id  = ESC_Portal_Auth::current_user_id();
 							</td>
 							<td class="esc-status-cell" data-label="<?php esc_attr_e( 'Status', 'es-care-portal' ); ?>">
 								<span class="esc-status esc-status--user-<?php echo esc_attr( sanitize_html_class( $row->status ) ); ?>"><?php echo esc_html( ESC_Portal_Users::status_label( $row->status ) ); ?></span>
+								<?php if ( ESC_Portal_Users::deletion_requested( $row->id ) ) : ?>
+									<span class="esc-status esc-status--user-pending_admin"><?php esc_html_e( 'Deletion requested', 'es-care-portal' ); ?></span>
+								<?php endif; ?>
 							</td>
 							<td class="esc-actions-cell" data-label="<?php esc_attr_e( 'Actions', 'es-care-portal' ); ?>">
 								<button
@@ -110,11 +112,8 @@ $current_id  = ESC_Portal_Auth::current_user_id();
 									data-status="<?php echo esc_attr( $row->status ); ?>"
 									data-can-delete="<?php echo $can_delete ? '1' : '0'; ?>"
 									data-pending-email="<?php echo $pending_email ? '1' : '0'; ?>"
-									data-pending-admin="<?php echo $pending_admin ? '1' : '0'; ?>"
 									data-delete-nonce="<?php echo esc_attr( $can_delete ? wp_create_nonce( 'esc_admin_delete_user_' . $row->id ) : '' ); ?>"
 									data-resend-nonce="<?php echo esc_attr( $pending_email ? wp_create_nonce( 'esc_resend_verification_' . $row->id ) : '' ); ?>"
-									data-approve-nonce="<?php echo esc_attr( $pending_admin ? wp_create_nonce( 'esc_approve_employer_' . $row->id ) : '' ); ?>"
-									data-reject-nonce="<?php echo esc_attr( $pending_admin ? wp_create_nonce( 'esc_reject_employer_' . $row->id ) : '' ); ?>"
 								><?php esc_html_e( 'Manage', 'es-care-portal' ); ?></button>
 							</td>
 						</tr>
@@ -169,22 +168,7 @@ $current_id  = ESC_Portal_Auth::current_user_id();
 				<input type="hidden" name="esc_resend_nonce" value="" data-esc-modal-resend-nonce>
 				<input type="hidden" name="action" value="esc_resend_verification">
 				<input type="hidden" name="esc_user_id" value="" data-esc-modal-user-id>
-				<button type="submit" class="esc-button esc-button--ghost"><?php esc_html_e( 'Resend verification', 'es-care-portal' ); ?></button>
-			</form>
-		</div>
-
-		<div class="esc-modal-extras esc-modal-extras--split" hidden data-esc-modal-pending-admin>
-			<form method="post" action="<?php echo esc_url( $post_url ); ?>">
-				<input type="hidden" name="esc_approve_nonce" value="" data-esc-modal-approve-nonce>
-				<input type="hidden" name="action" value="esc_approve_employer">
-				<input type="hidden" name="esc_user_id" value="" data-esc-modal-user-id>
-				<button type="submit" class="esc-button"><?php esc_html_e( 'Approve', 'es-care-portal' ); ?></button>
-			</form>
-			<form method="post" action="<?php echo esc_url( $post_url ); ?>">
-				<input type="hidden" name="esc_reject_nonce" value="" data-esc-modal-reject-nonce>
-				<input type="hidden" name="action" value="esc_reject_employer">
-				<input type="hidden" name="esc_user_id" value="" data-esc-modal-user-id>
-				<button type="submit" class="esc-button esc-button--danger"><?php esc_html_e( 'Reject', 'es-care-portal' ); ?></button>
+				<button type="submit" class="esc-button esc-button--ghost"><?php esc_html_e( 'Resend activation email', 'es-care-portal' ); ?></button>
 			</form>
 		</div>
 

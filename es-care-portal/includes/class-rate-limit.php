@@ -16,14 +16,15 @@ class ESC_Portal_Rate_Limit {
 	 */
 	public static function limits() {
 		return array(
-			'register'     => array( 'limit' => 5, 'window' => HOUR_IN_SECONDS ),
-			'job_publish'  => array( 'limit' => 10, 'window' => DAY_IN_SECONDS ),
-			'apply'        => array( 'limit' => 20, 'window' => DAY_IN_SECONDS ),
-			'request'      => array( 'limit' => 10, 'window' => HOUR_IN_SECONDS ),
-			'contact'      => array( 'limit' => 5, 'window' => HOUR_IN_SECONDS ),
-			'assessment'   => array( 'limit' => 15, 'window' => HOUR_IN_SECONDS ),
-			'verify_resend'=> array( 'limit' => 3, 'window' => HOUR_IN_SECONDS ),
-			'lost_password'=> array( 'limit' => 5, 'window' => 5 * MINUTE_IN_SECONDS ),
+			'register'     => array( 'limit' => 10, 'window' => HOUR_IN_SECONDS ),
+			'job_publish'  => array( 'limit' => 20, 'window' => DAY_IN_SECONDS ),
+			'apply'        => array( 'limit' => 40, 'window' => DAY_IN_SECONDS ),
+			'request'      => array( 'limit' => 20, 'window' => HOUR_IN_SECONDS ),
+			'contact'      => array( 'limit' => 10, 'window' => HOUR_IN_SECONDS ),
+			'assessment'   => array( 'limit' => 30, 'window' => HOUR_IN_SECONDS ),
+			'verify_resend'=> array( 'limit' => 6, 'window' => HOUR_IN_SECONDS ),
+			'lost_password'=> array( 'limit' => 10, 'window' => 5 * MINUTE_IN_SECONDS ),
+			'delete_request'=> array( 'limit' => 6, 'window' => HOUR_IN_SECONDS ),
 		);
 	}
 

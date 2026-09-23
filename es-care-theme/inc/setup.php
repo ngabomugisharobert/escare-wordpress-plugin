@@ -18,6 +18,8 @@ add_filter( 'nav_menu_link_attributes', 'escare_menu_link_attrs', 10, 2 );
 add_filter( 'wp_nav_menu_objects', 'escare_rewrite_contact_menu_urls', 8, 2 );
 add_filter( 'wp_nav_menu_objects', 'escare_hide_code_of_conduct_menu_items', 9, 2 );
 add_filter( 'wp_nav_menu_objects', 'escare_filter_menu_by_portal_role', 10, 2 );
+add_filter( 'the_title', 'escare_filter_dashboard_page_title', 10, 2 );
+add_filter( 'document_title_parts', 'escare_filter_dashboard_document_title' );
 add_filter( 'template_include', 'escare_contact_template', 999 );
 add_action( 'template_redirect', 'escare_block_cross_role_pages', 1 );
 
@@ -33,7 +35,7 @@ function escare_setup() {
 	add_theme_support(
 		'custom-logo',
 		array(
-			'height'      => 72,
+			'height'      => 90,
 			'width'       => 240,
 			'flex-height' => true,
 			'flex-width'  => true,
@@ -152,6 +154,64 @@ function escare_body_class( $classes ) {
 	}
 
 	return $classes;
+}
+
+/**
+ * Dashboard page ID from the portal plugin.
+ *
+ * @return int
+ */
+function escare_dashboard_page_id() {
+	if ( ! class_exists( 'ESC_Portal_Helpers' ) || ! method_exists( 'ESC_Portal_Helpers', 'get_page_id' ) ) {
+		return 0;
+	}
+
+	return (int) ESC_Portal_Helpers::get_page_id( 'dashboard' );
+}
+
+/**
+ * Replace "Applicant Dashboard" / "Dashboard" with "{Name} Dashboard" in the page heading.
+ *
+ * @param string $title   Title.
+ * @param int    $post_id Post ID.
+ * @return string
+ */
+function escare_filter_dashboard_page_title( $title, $post_id = 0 ) {
+	if ( is_admin() || ! in_the_loop() ) {
+		return $title;
+	}
+
+	$dash_id = escare_dashboard_page_id();
+	if ( ! $dash_id || (int) $post_id !== $dash_id ) {
+		return $title;
+	}
+
+	if ( ! class_exists( 'ESC_Portal_Helpers' ) || ! method_exists( 'ESC_Portal_Helpers', 'dashboard_heading' ) ) {
+		return $title;
+	}
+
+	return ESC_Portal_Helpers::dashboard_heading( escare_portal_user() );
+}
+
+/**
+ * Browser tab title for the signed-in dashboard.
+ *
+ * @param array $parts Title parts.
+ * @return array
+ */
+function escare_filter_dashboard_document_title( $parts ) {
+	$dash_id = escare_dashboard_page_id();
+	if ( ! $dash_id || ! is_page( $dash_id ) ) {
+		return $parts;
+	}
+
+	if ( ! class_exists( 'ESC_Portal_Helpers' ) || ! method_exists( 'ESC_Portal_Helpers', 'dashboard_heading' ) ) {
+		return $parts;
+	}
+
+	$parts['title'] = ESC_Portal_Helpers::dashboard_heading( escare_portal_user() );
+
+	return $parts;
 }
 
 /**

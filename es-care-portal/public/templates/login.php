@@ -18,7 +18,7 @@ $email  = isset( $sticky['email'] ) ? $sticky['email'] : '';
 	<div class="esc-card esc-card--narrow">
 		<p class="esc-kicker"><?php esc_html_e( 'Careers portal', 'es-care-portal' ); ?></p>
 		<h2><?php esc_html_e( 'Sign in', 'es-care-portal' ); ?></h2>
-		<p><?php esc_html_e( 'Use your job seeker, employer, or portal admin account. WordPress site users sign in separately via wp-login.', 'es-care-portal' ); ?></p>
+		<p><?php esc_html_e( 'Use your job seeker, employer, or portal admin account.', 'es-care-portal' ); ?></p>
 		<form class="esc-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<?php wp_nonce_field( 'esc_login', 'esc_login_nonce' ); ?>
 			<?php echo ESC_Portal_CSRF::field(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
@@ -47,5 +47,15 @@ $email  = isset( $sticky['email'] ) ? $sticky['email'] : '';
 			&nbsp;·&nbsp;
 			<a href="<?php echo esc_url( ESC_Portal_Helpers::get_page_url( 'register' ) ); ?>"><?php esc_html_e( 'Create an account', 'es-care-portal' ); ?></a>
 		</p>
+		<form class="esc-form esc-form--compact" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php wp_nonce_field( 'esc_resend_verification_public', 'esc_resend_public_nonce' ); ?>
+			<?php echo ESC_Portal_CSRF::field(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+			<input type="hidden" name="action" value="esc_resend_verification_public">
+			<p class="esc-field">
+				<label for="esc_resend_email"><?php esc_html_e( "Didn't get an activation email?", 'es-care-portal' ); ?></label>
+				<input type="email" id="esc_resend_email" name="esc_email" value="<?php echo esc_attr( $email ); ?>" required autocomplete="email">
+			</p>
+			<p><button type="submit" class="esc-button esc-button--ghost"><?php esc_html_e( 'Resend activation email', 'es-care-portal' ); ?></button></p>
+		</form>
 	</div>
 </div>

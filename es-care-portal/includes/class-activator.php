@@ -31,6 +31,7 @@ class ESC_Portal_Activator {
 		ESC_Portal_Uploads::ensure_directory();
 		ESC_Portal_Mail_Queue::schedule();
 		ESC_Portal_Privacy::schedule();
+		ESC_Portal_Users::activate_awaiting_approval();
 		flush_rewrite_rules();
 		ESC_Portal_Schema::maybe_upgrade();
 		update_option( ESC_Portal_Helpers::VERSION_KEY, ESC_PORTAL_VERSION, false );
@@ -52,6 +53,7 @@ class ESC_Portal_Activator {
 		ESC_Portal_Uploads::ensure_directory();
 		ESC_Portal_Mail_Queue::schedule();
 		ESC_Portal_Privacy::schedule();
+		ESC_Portal_Users::activate_awaiting_approval();
 		update_option( ESC_Portal_Helpers::VERSION_KEY, ESC_PORTAL_VERSION, false );
 	}
 

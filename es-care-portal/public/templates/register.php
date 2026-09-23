@@ -23,7 +23,7 @@ $company = isset( $sticky['company_name'] ) ? $sticky['company_name'] : '';
 	<div class="esc-card esc-card--register">
 		<p class="esc-kicker"><?php esc_html_e( 'ES Care Services', 'es-care-portal' ); ?></p>
 		<h2><?php esc_html_e( 'Create a portal account', 'es-care-portal' ); ?></h2>
-		<p><?php esc_html_e( 'Choose whether you are looking for work or hiring, then create your portal account.', 'es-care-portal' ); ?></p>
+		<p><?php esc_html_e( 'Choose whether you are looking for work or hiring, then create your portal account. We will email an activation link before you can sign in.', 'es-care-portal' ); ?></p>
 		<form class="esc-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="esc-register-form">
 			<?php wp_nonce_field( 'esc_register', 'esc_register_nonce' ); ?>
 			<?php echo ESC_Portal_CSRF::field(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>

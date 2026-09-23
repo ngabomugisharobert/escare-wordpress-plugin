@@ -21,7 +21,7 @@ get_header();
 <section class="escare-section">
 	<div class="escare-wrap">
 		<div class="escare-prose">
-		<p><?php esc_html_e( 'Everyone placed by E&S Care Service LLC is expected to act professionally, legally, and respectfully in every assignment.', 'es-care' ); ?></p>
+		<p><?php esc_html_e( 'Everyone placed by E&S Care Services LLC is expected to act professionally, legally, and respectfully in every assignment.', 'es-care' ); ?></p>
 		<ul>
 			<li><?php esc_html_e( 'Follow facility policies, care plans, and lawful instructions from supervisors.', 'es-care' ); ?></li>
 			<li><?php esc_html_e( 'Protect resident, patient, and family privacy. Do not share health information except as required for care.', 'es-care' ); ?></li>

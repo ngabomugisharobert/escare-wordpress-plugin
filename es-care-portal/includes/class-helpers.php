@@ -37,7 +37,7 @@ class ESC_Portal_Helpers {
 			'color_tile'            => '#4caf50',
 			'color_cta'             => '#2e7d32',
 			'tile_seeker'           => array( 'apply', 'assessments', 'results', 'forms' ),
-			'tile_employer'         => array( 'post', 'jobs', 'profile', 'membership' ),
+			'tile_employer'         => array( 'post', 'jobs', 'profile' ),
 			'retention_years'       => 3,
 			'delete_data_on_uninstall' => 0,
 		);
@@ -70,6 +70,11 @@ class ESC_Portal_Helpers {
 
 		if ( ! is_array( $settings['tile_employer'] ) ) {
 			$settings['tile_employer'] = $defaults['tile_employer'];
+		} else {
+			$settings['tile_employer'] = array_values( array_intersect( $settings['tile_employer'], array( 'post', 'jobs', 'profile' ) ) );
+			if ( ! $settings['tile_employer'] ) {
+				$settings['tile_employer'] = $defaults['tile_employer'];
+			}
 		}
 
 		$settings['max_file_mb']      = max( 1, absint( $settings['max_file_mb'] ) );
@@ -276,6 +281,46 @@ class ESC_Portal_Helpers {
 	}
 
 	/**
+	 * Page heading for the signed-in dashboard.
+	 *
+	 * Job seekers and portal admins use first name. Employers use company name.
+	 *
+	 * @param object|null $user Portal user.
+	 * @return string
+	 */
+	public static function dashboard_heading( $user = null ) {
+		$fallback = __( 'Dashboard', 'es-care-portal' );
+
+		if ( ! $user || ! is_object( $user ) ) {
+			return $fallback;
+		}
+
+		$name = '';
+
+		if ( class_exists( 'ESC_Portal_Users' ) && ESC_Portal_Users::is_employer( $user ) ) {
+			$name = isset( $user->company_name ) ? trim( (string) $user->company_name ) : '';
+		}
+
+		if ( ! $name ) {
+			$name = isset( $user->first_name ) ? trim( (string) $user->first_name ) : '';
+		}
+
+		if ( ! $name && ! empty( $user->display_name ) ) {
+			$name = trim( (string) $user->display_name );
+		}
+
+		if ( ! $name ) {
+			return $fallback;
+		}
+
+		return sprintf(
+			/* translators: %s: first name or employer company name */
+			__( '%s Dashboard', 'es-care-portal' ),
+			$name
+		);
+	}
+
+	/**
 	 * Allowed dashboard views for a portal role.
 	 *
 	 * @param string $role seeker|employer|admin.
@@ -283,7 +328,7 @@ class ESC_Portal_Helpers {
 	 */
 	public static function dashboard_views( $role = 'seeker' ) {
 		if ( 'employer' === $role ) {
-			return array( 'home', 'profile', 'jobs', 'password', 'request', 'membership', 'post', 'conduct' );
+			return array( 'home', 'profile', 'jobs', 'password', 'request', 'post', 'conduct' );
 		}
 
 		if ( 'admin' === $role ) {
@@ -883,17 +928,21 @@ class ESC_Portal_Helpers {
 			'password-changed'  => __( 'Your password has been updated.', 'es-care-portal' ),
 			'wrong-password'    => __( 'Your current password is incorrect.', 'es-care-portal' ),
 			'account-deleted'   => __( 'Your account has been deleted.', 'es-care-portal' ),
+			'deletion-requested'=> __( 'We received your request to delete this account. An administrator will review it.', 'es-care-portal' ),
+			'deletion-pending'  => __( 'A deletion request for this account is already waiting for administrator review.', 'es-care-portal' ),
 			'assessment-passed' => __( 'You passed the assessment. Download employment forms when you are ready.', 'es-care-portal' ),
 			'assessment-failed' => __( 'Your assessment was recorded. You can review the score and try again.', 'es-care-portal' ),
 			'request-sent'      => __( 'Your service request was sent. We will follow up with you.', 'es-care-portal' ),
 			'contact-sent'      => __( 'Thanks — your message was sent. We will follow up with you.', 'es-care-portal' ),
-			'verify-email'      => __( 'Check your email to verify this employer account. An administrator must then approve it before you can post jobs.', 'es-care-portal' ),
-			'email-verified'    => __( 'Your email is verified. An administrator will review your employer account shortly.', 'es-care-portal' ),
-			'pending-email'     => __( 'Please verify your email address before signing in.', 'es-care-portal' ),
-			'pending-admin'     => __( 'Your employer account is waiting for administrator approval.', 'es-care-portal' ),
+			'verify-email'      => __( 'Check your email for an activation link. The link expires in 24 hours.', 'es-care-portal' ),
+			'verify-email-seeker' => __( 'Check your email for an activation link. The link expires in 24 hours.', 'es-care-portal' ),
+			'email-verified'    => __( 'Your account is activated. You can sign in now.', 'es-care-portal' ),
+			'email-confirmed'   => __( 'Your account is activated. Welcome to ES Care Services.', 'es-care-portal' ),
+			'pending-email'     => __( 'Please activate your account from the email we sent before signing in.', 'es-care-portal' ),
+			'pending-admin'     => __( 'Please activate your account from the email we sent before signing in.', 'es-care-portal' ),
 			'employer-approved' => __( 'The employer account has been approved.', 'es-care-portal' ),
 			'employer-rejected' => __( 'The employer account has been rejected and disabled.', 'es-care-portal' ),
-			'verify-resent'     => __( 'A new verification email was sent.', 'es-care-portal' ),
+			'verify-resent'     => __( 'A new activation email was sent.', 'es-care-portal' ),
 			'job-pending'       => __( 'Your job listing was submitted for administrator review.', 'es-care-portal' ),
 			'job-approved'      => __( 'The job listing is now published.', 'es-care-portal' ),
 			'job-rejected'      => __( 'The job listing was rejected.', 'es-care-portal' ),

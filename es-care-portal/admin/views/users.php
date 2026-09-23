@@ -140,7 +140,12 @@ defined( 'ABSPATH' ) || exit;
 						<td><?php echo esc_html( $row->display_name ); ?></td>
 						<td><?php echo esc_html( $row->email ); ?></td>
 						<td><?php echo esc_html( ESC_Portal_Users::role_label( $row->role ) ); ?></td>
-						<td><?php echo esc_html( ESC_Portal_Users::status_label( $row->status ) ); ?></td>
+						<td>
+							<?php echo esc_html( ESC_Portal_Users::status_label( $row->status ) ); ?>
+							<?php if ( ESC_Portal_Users::deletion_requested( $row->id ) ) : ?>
+								<br><strong><?php esc_html_e( 'Deletion requested', 'es-care-portal' ); ?></strong>
+							<?php endif; ?>
+						</td>
 						<td>
 							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 								<?php wp_nonce_field( 'esc_portal_user', 'esc_user_nonce' ); ?>
@@ -159,26 +164,12 @@ defined( 'ABSPATH' ) || exit;
 								</select>
 								<?php submit_button( __( 'Save', 'es-care-portal' ), 'secondary', 'submit', false ); ?>
 							</form>
-							<?php if ( ESC_Portal_Users::ROLE_EMPLOYER === $row->role && ESC_Portal_Users::STATUS_PENDING_EMAIL === $row->status ) : ?>
+							<?php if ( ESC_Portal_Users::STATUS_PENDING_EMAIL === $row->status ) : ?>
 								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:0.4rem;">
 									<?php wp_nonce_field( 'esc_resend_verification_' . $row->id, 'esc_resend_nonce' ); ?>
 									<input type="hidden" name="action" value="esc_resend_verification">
 									<input type="hidden" name="esc_user_id" value="<?php echo esc_attr( (string) $row->id ); ?>">
-									<?php submit_button( __( 'Resend verification', 'es-care-portal' ), 'secondary', 'submit', false ); ?>
-								</form>
-							<?php endif; ?>
-							<?php if ( ESC_Portal_Users::ROLE_EMPLOYER === $row->role && ESC_Portal_Users::STATUS_PENDING_ADMIN === $row->status ) : ?>
-								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;margin-top:0.4rem;">
-									<?php wp_nonce_field( 'esc_approve_employer_' . $row->id, 'esc_approve_nonce' ); ?>
-									<input type="hidden" name="action" value="esc_approve_employer">
-									<input type="hidden" name="esc_user_id" value="<?php echo esc_attr( (string) $row->id ); ?>">
-									<?php submit_button( __( 'Approve', 'es-care-portal' ), 'primary', 'submit', false ); ?>
-								</form>
-								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;margin-top:0.4rem;">
-									<?php wp_nonce_field( 'esc_reject_employer_' . $row->id, 'esc_reject_nonce' ); ?>
-									<input type="hidden" name="action" value="esc_reject_employer">
-									<input type="hidden" name="esc_user_id" value="<?php echo esc_attr( (string) $row->id ); ?>">
-									<?php submit_button( __( 'Reject', 'es-care-portal' ), 'delete', 'submit', false ); ?>
+									<?php submit_button( __( 'Resend activation', 'es-care-portal' ), 'secondary', 'submit', false ); ?>
 								</form>
 							<?php endif; ?>
 						</td>

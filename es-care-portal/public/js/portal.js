@@ -353,8 +353,6 @@
 			setValue('[data-esc-modal-user-id]', button.getAttribute('data-user-id'));
 			setValue('[data-esc-modal-delete-nonce]', button.getAttribute('data-delete-nonce'));
 			setValue('[data-esc-modal-resend-nonce]', button.getAttribute('data-resend-nonce'));
-			setValue('[data-esc-modal-approve-nonce]', button.getAttribute('data-approve-nonce'));
-			setValue('[data-esc-modal-reject-nonce]', button.getAttribute('data-reject-nonce'));
 
 			var nameEl = dialog.querySelector('[data-esc-modal-name]');
 			var emailEl = dialog.querySelector('[data-esc-modal-email]');
@@ -375,13 +373,9 @@
 			}
 
 			var pendingEmail = dialog.querySelector('[data-esc-modal-pending-email]');
-			var pendingAdmin = dialog.querySelector('[data-esc-modal-pending-admin]');
 			var del = dialog.querySelector('[data-esc-modal-delete]');
 			if (pendingEmail) {
 				pendingEmail.hidden = button.getAttribute('data-pending-email') !== '1';
-			}
-			if (pendingAdmin) {
-				pendingAdmin.hidden = button.getAttribute('data-pending-admin') !== '1';
 			}
 			if (del) {
 				del.hidden = button.getAttribute('data-can-delete') !== '1';

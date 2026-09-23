@@ -21,7 +21,7 @@ get_header();
 <section class="escare-section">
 	<div class="escare-wrap">
 		<div class="escare-prose">
-		<p><?php esc_html_e( 'E&S Care Service LLC (“we”) operates the public website and the careers portal. This page describes how we handle personal information you submit through the site.', 'es-care' ); ?></p>
+		<p><?php esc_html_e( 'E&S Care Services LLC (“we”) operates the public website and the careers portal. This page describes how we handle personal information you submit through the site.', 'es-care' ); ?></p>
 		<h2><?php esc_html_e( 'What we collect', 'es-care' ); ?></h2>
 		<p><?php esc_html_e( 'Contact messages include your name, email, subject, and message. Portal accounts include name, email, phone, role, and — for employers — company name. Applications may include work history, certifications, and a resume file. We do not collect Social Security numbers or driver’s-license numbers through this site.', 'es-care' ); ?></p>
 		<h2><?php esc_html_e( 'How we use it', 'es-care' ); ?></h2>

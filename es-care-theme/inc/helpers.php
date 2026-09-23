@@ -248,7 +248,7 @@ function escare_cross_role_block() {
 			if ( in_array( $view, array( 'apply', 'assessments', 'take', 'results', 'forms' ), true ) ) {
 				$seeker = true;
 			}
-			if ( in_array( $view, array( 'jobs', 'post', 'membership' ), true ) ) {
+			if ( in_array( $view, array( 'jobs', 'post', 'profile', 'request' ), true ) ) {
 				$employer = true;
 			}
 		}

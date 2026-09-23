@@ -55,7 +55,7 @@ $account = array(
 );
 ?>
 <section class="esc-dash-panel">
-	<h2 class="esc-dash-title"><?php esc_html_e( 'Dashboard', 'es-care-portal' ); ?></h2>
+	<h2 class="esc-dash-title"><?php echo esc_html( ESC_Portal_Helpers::dashboard_heading( isset( $user ) ? $user : null ) ); ?></h2>
 
 	<?php if ( empty( $profile_complete ) ) : ?>
 		<div class="esc-notice esc-notice--info">

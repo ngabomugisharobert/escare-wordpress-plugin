@@ -48,7 +48,7 @@ class ESC_Portal_Account {
 	}
 
 	/**
-	 * Permanently remove a seeker or employer portal account.
+	 * Request that staff delete a seeker or employer portal account.
 	 */
 	public static function handle_delete_account() {
 		$fallback = ESC_Portal_Helpers::dashboard_url( 'password' );
@@ -67,12 +67,63 @@ class ESC_Portal_Account {
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'required', 'error' );
 		}
 
-		$user_id = ESC_Portal_Auth::current_user_id();
-		if ( ! ESC_Portal_Users::delete( $user_id ) ) {
-			ESC_Portal_Helpers::redirect_notice( $fallback, 'save-failed', 'error' );
+		$user = ESC_Portal_Auth::current_user();
+
+		if ( ! $user ) {
+			ESC_Portal_Helpers::redirect_notice( ESC_Portal_Helpers::get_page_url( 'login' ), 'login-required', 'error' );
 		}
 
-		ESC_Portal_Auth::logout_user();
-		ESC_Portal_Helpers::redirect_notice( ESC_Portal_Helpers::get_page_url( 'login' ), 'account-deleted', 'info' );
+		if ( ESC_Portal_Users::deletion_requested( $user->id ) ) {
+			ESC_Portal_Helpers::redirect_notice( $fallback, 'deletion-pending', 'info' );
+		}
+
+		if ( ! ESC_Portal_Rate_Limit::allow( 'delete_request', (string) $user->id ) ) {
+			ESC_Portal_Helpers::redirect_notice( $fallback, 'rate-limited', 'error' );
+		}
+
+		ESC_Portal_Users::update_meta( $user->id, 'deletion_requested_at', current_time( 'mysql' ) );
+
+		$lines = array(
+			sprintf(
+				/* translators: %s: role label */
+				__( 'This %s asked to delete their portal account.', 'es-care-portal' ),
+				ESC_Portal_Users::role_label( $user->role )
+			),
+			sprintf(
+				/* translators: %s: full name */
+				__( 'Name: %s', 'es-care-portal' ),
+				$user->display_name
+			),
+			sprintf(
+				/* translators: %s: email */
+				__( 'Email: %s', 'es-care-portal' ),
+				$user->email
+			),
+		);
+
+		if ( ! empty( $user->phone ) ) {
+			$lines[] = sprintf(
+				/* translators: %s: phone */
+				__( 'Phone: %s', 'es-care-portal' ),
+				$user->phone
+			);
+		}
+
+		if ( ! empty( $user->company_name ) ) {
+			$lines[] = sprintf(
+				/* translators: %s: company name */
+				__( 'Company: %s', 'es-care-portal' ),
+				$user->company_name
+			);
+		}
+
+		$lines[] = __( 'Review the account and delete it from Dashboard Users if you approve.', 'es-care-portal' );
+
+		$subject = __( 'Account deletion request', 'es-care-portal' );
+		$message = implode( "\n", $lines );
+
+		ESC_Portal_Forms::save_request( (int) $user->id, $user->display_name, $user->email, $subject, $message );
+		ESC_Portal_Emails::account_deletion_requested( $user );
+		ESC_Portal_Helpers::redirect_notice( $fallback, 'deletion-requested', 'success' );
 	}
 }

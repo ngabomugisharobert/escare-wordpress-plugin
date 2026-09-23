@@ -59,6 +59,16 @@ $health = isset( $health ) && is_array( $health ) ? $health : array();
 				<td><?php echo esc_html( ! empty( $health['retention_cron'] ) ? $health['retention_cron'] : __( 'Not scheduled', 'es-care-portal' ) ); ?></td>
 			</tr>
 			<tr>
+				<th><?php esc_html_e( 'Portal SMTP', 'es-care-portal' ); ?></th>
+				<td>
+					<?php if ( ! empty( $health['smtp_enabled'] ) ) : ?>
+						<?php esc_html_e( 'Enabled for portal mail', 'es-care-portal' ); ?>
+					<?php else : ?>
+						<?php esc_html_e( 'Disabled — forgot-password and other portal mail use PHP mail unless another SMTP plugin is sending WordPress mail', 'es-care-portal' ); ?>
+					<?php endif; ?>
+				</td>
+			</tr>
+			<tr>
 				<th><?php esc_html_e( 'SMTP plugin conflicts', 'es-care-portal' ); ?></th>
 				<td>
 					<?php if ( ! empty( $health['smtp_conflicts'] ) ) : ?>

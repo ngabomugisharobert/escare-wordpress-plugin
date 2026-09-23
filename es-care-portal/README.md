@@ -4,12 +4,12 @@ WordPress plugin for **ES Care Services LLC**. It runs a job-seeker and employer
 
 Requires WordPress 6.0+ and PHP 7.4+. Elementor is optional.
 
-Current version: **2.0.15**
+Current version: **2.0.24**
 
 ## What it does
 
-- Job seekers register, apply to jobs, upload resumes, take assessments, and submit employment forms.
-- Employers register, verify email, wait for admin approval, then post jobs that stay pending until staff publish them.
+- Job seekers register, activate by email, apply to jobs, upload resumes, take assessments, and submit employment forms.
+- Employers register, activate by email, then post jobs that stay pending until staff publish them.
 - Portal admins manage users, jobs, applications, and contact messages from the dashboard.
 - Guests can send a Contact Us message without signing in.
 
@@ -52,14 +52,14 @@ If a page is missing, deactivate and reactivate the plugin, or recreate it with 
 | `[esc_dash_view view="apply"]` | One dashboard view |
 | `[esc_portal_notice]` | Flash notice after a form POST |
 
-Dashboard views use `?esc_view=`. Examples: `apply`, `assessments`, `results`, `forms`, `request` (seeker); `profile`, `jobs`, `post`, `membership`, `request` (employer); `users`, `jobs`, `applications` (portal admin). Contact Us is a public page, not a portal-admin dashboard view.
+Dashboard views use `?esc_view=`. Examples: `apply`, `assessments`, `results`, `forms`, `request` (seeker); `profile`, `jobs`, `post`, `request` (employer); `users`, `jobs`, `applications` (portal admin). Contact Us is a public page, not a portal-admin dashboard view.
 
 ## Account roles
 
 | Role | Who | After register |
 |------|-----|----------------|
-| Job seeker | Applicants | Active immediately |
-| Employer / company | Hiring companies | Verify email, then wait for admin approval |
+| Job seeker | Applicants | Activate from the email link |
+| Employer / company | Hiring companies | Activate from the email link |
 | Admin | Portal staff | Created only from WordPress (**Dashboard Users**), not self-registration |
 
 Employer job posts save as WordPress `pending` until a staff member publishes them.
@@ -71,7 +71,7 @@ Under **ES Care Portal**:
 - **Overview** — counts and shortcuts
 - **Jobs / Job Categories** — custom post type `esc_job`
 - **Applications** — review snapshots, status, resumes
-- **Dashboard Users** — create, search, approve, disable, or delete portal accounts
+- **Dashboard Users** — create, search, disable, or delete portal accounts
 - **Assessments** — pre-hire tests
 - **Employment Forms** — fillable forms and uploads
 - **Service Requests** — inbox for dashboard requests and public Contact Us messages

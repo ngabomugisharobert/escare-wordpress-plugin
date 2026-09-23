@@ -57,18 +57,24 @@ $needles = array(
 	'ESC_PORTAL_TRUSTED_PROXIES'      => $root . '/includes/class-rate-limit.php',
 	'aes-256-gcm'                     => $root . '/includes/class-emails.php',
 	'esc_portal_process_mail_queue'   => $root . '/includes/class-mail-queue.php',
+	'esc_resend_verification_public'  => $root . '/includes/class-auth.php',
+	'verify-email-seeker'             => $root . '/includes/class-helpers.php',
+	'STATUS_PENDING_EMAIL'            => $root . '/includes/class-auth.php',
+	'Send now so password resets'     => $root . '/includes/class-mail-queue.php',
+	'esc_portal_five_minutes'         => $root . '/includes/class-mail-queue.php',
 	'purge_identity_fields'           => $root . '/includes/class-privacy.php',
 	'retention_years'                 => $root . '/includes/class-helpers.php',
 	'delete_data_on_uninstall'        => $root . '/uninstall.php',
 	'scope="col"'                     => $root . '/public/templates/partials/admin-users.php',
 	'aria-sort'                       => $root . '/includes/class-helpers.php',
-	'esc_approve_employer'            => $root . '/public/templates/partials/admin-users.php',
+	'esc_resend_verification'         => $root . '/public/templates/partials/admin-users.php',
 	'esc_moderate_job'                => $root . '/public/templates/partials/admin-jobs.php',
 	'esc_contact'                     => $root . '/public/templates/contact.php',
 	'table_request'                   => $root . '/includes/class-shortcodes.php',
 	'zeroResults'                     => $root . '/public/js/portal.js',
 	'maybe_upgrade'                    => $root . '/includes/class-plugin.php',
 	'can_apply_to_jobs'                => $root . '/includes/class-users.php',
+	'account_deletion_requested'      => $root . '/includes/class-emails.php',
 	'dashboard_views'                  => $root . '/includes/class-helpers.php',
 	'portal admin, so you cannot apply' => $root . '/includes/class-shortcodes.php',
 );
@@ -123,6 +129,12 @@ if ( ! preg_match( "/if \\( 'admin' === \\$role \\) \\{[\\s\\S]*return array\\( 
 	esc_check_fail( $fails, 'admin dashboard_views must be home, users, jobs, applications' );
 } else {
 	esc_check_pass( 'admin dashboard views omit contact' );
+}
+
+if ( false !== strpos( $admin_views, "'password', 'request', 'membership'" ) ) {
+	esc_check_fail( $fails, 'employer dashboard_views still includes membership' );
+} else {
+	esc_check_pass( 'employer dashboard views omit membership' );
 }
 
 $jobs = file_get_contents( $root . '/public/templates/jobs.php' );

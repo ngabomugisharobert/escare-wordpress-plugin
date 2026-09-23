@@ -12,7 +12,7 @@ get_header();
 <header class="escare-page-hero">
 	<div class="escare-wrap">
 		<h1><?php esc_html_e( 'About Us', 'es-care' ); ?></h1>
-		<p><?php esc_html_e( 'E&S Care Service LLC exists to keep quality care staffed — matching facilities with professionals who show up prepared, and helping caregivers find work they can be proud of.', 'es-care' ); ?></p>
+		<p><?php esc_html_e( 'E&S Care Services LLC exists to keep quality care staffed — matching facilities with professionals who show up prepared, and helping caregivers find work they can be proud of.', 'es-care' ); ?></p>
 	</div>
 </header>
 

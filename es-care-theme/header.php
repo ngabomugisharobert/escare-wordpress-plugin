@@ -28,8 +28,8 @@ $user  = escare_portal_user();
 				class="escare-logo"
 				src="<?php echo esc_url( escare_logo_url() ); ?>"
 				alt="<?php echo esc_attr__( 'ES Care Services — Care you can trust', 'es-care' ); ?>"
-				width="1888"
-				height="716"
+				width="240"
+				height="90"
 				decoding="async"
 				fetchpriority="high"
 			>

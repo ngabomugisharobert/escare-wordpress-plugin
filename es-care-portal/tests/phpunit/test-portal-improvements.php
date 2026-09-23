@@ -18,10 +18,9 @@ class ESC_Portal_Improvement_Tests extends WP_UnitTestCase {
 		$this->assertSame( 3, ESC_Portal_Schema::TARGET );
 	}
 
-	public function test_employer_statuses_include_verification_and_approval() {
+	public function test_user_statuses_include_activation_and_active() {
 		$statuses = ESC_Portal_Users::statuses();
 		$this->assertArrayHasKey( 'pending_email', $statuses );
-		$this->assertArrayHasKey( 'pending_admin', $statuses );
 		$this->assertArrayHasKey( 'active', $statuses );
 		$this->assertArrayHasKey( 'disabled', $statuses );
 	}
@@ -63,7 +62,7 @@ class ESC_Portal_Improvement_Tests extends WP_UnitTestCase {
 
 	public function test_rate_limit_actions_are_named() {
 		$limits = ESC_Portal_Rate_Limit::limits();
-		foreach ( array( 'register', 'job_publish', 'apply', 'request', 'assessment', 'verify_resend', 'contact', 'lost_password' ) as $action ) {
+		foreach ( array( 'register', 'job_publish', 'apply', 'request', 'assessment', 'verify_resend', 'contact', 'lost_password', 'delete_request' ) as $action ) {
 			$this->assertArrayHasKey( $action, $limits );
 		}
 	}
@@ -111,6 +110,7 @@ class ESC_Portal_Improvement_Tests extends WP_UnitTestCase {
 		$this->assertContains( 'jobs', $employer );
 		$this->assertContains( 'post', $employer );
 		$this->assertNotContains( 'apply', $employer );
+		$this->assertNotContains( 'membership', $employer );
 
 		$admin = ESC_Portal_Helpers::dashboard_views( 'admin' );
 		$this->assertContains( 'conduct', $seeker );
@@ -118,6 +118,34 @@ class ESC_Portal_Improvement_Tests extends WP_UnitTestCase {
 		$this->assertSame( array( 'home', 'users', 'jobs', 'applications', 'conduct' ), $admin );
 		$this->assertNotContains( 'contact', $admin );
 		$this->assertNotContains( 'apply', $admin );
+	}
+
+	public function test_dashboard_heading_uses_first_name_or_company() {
+		$seeker = (object) array(
+			'role'         => ESC_Portal_Users::ROLE_SEEKER,
+			'first_name'   => 'Jane',
+			'company_name' => 'Should Not Appear',
+			'display_name' => 'Jane Doe',
+		);
+		$this->assertSame( 'Jane Dashboard', ESC_Portal_Helpers::dashboard_heading( $seeker ) );
+
+		$employer = (object) array(
+			'role'         => ESC_Portal_Users::ROLE_EMPLOYER,
+			'first_name'   => 'Sam',
+			'company_name' => 'Harbor Care',
+			'display_name' => 'Sam Lee',
+		);
+		$this->assertSame( 'Harbor Care Dashboard', ESC_Portal_Helpers::dashboard_heading( $employer ) );
+
+		$admin = (object) array(
+			'role'         => ESC_Portal_Users::ROLE_ADMIN,
+			'first_name'   => 'Alex',
+			'company_name' => '',
+			'display_name' => 'Alex Admin',
+		);
+		$this->assertSame( 'Alex Dashboard', ESC_Portal_Helpers::dashboard_heading( $admin ) );
+
+		$this->assertSame( 'Dashboard', ESC_Portal_Helpers::dashboard_heading( null ) );
 	}
 
 	public function test_unknown_admin_view_falls_back_to_home() {

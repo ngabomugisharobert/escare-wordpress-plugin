@@ -5,7 +5,7 @@ title: "Website Management & Credentials Documentation"
 **CONFIDENTIAL — Internal / owner use only**  
 Do not email this file unencrypted. Store passwords in a password manager when possible.
 
-**Client:** E&S Care Service LLC  
+**Client:** E&S Care Services LLC  
 **Prepared by:** BlueField Technology LLC  
 **Document date:** September 21, 2026  
 **Website:** https://escare-services.com  
@@ -123,8 +123,8 @@ Also check: **ES Care Portal → Health** (schema, private storage writable, mai
 
 | Role | Behavior |
 |------|----------|
-| Job seeker | Active after register; apply, assessments, forms |
-| Employer | Must verify email, then wait for admin approval before posting jobs |
+| Job seeker | Active after email activation; apply, assessments, forms |
+| Employer | Active after email activation; can post jobs (listings stay pending until staff publish) |
 | Portal admin | Created in **ES Care Portal → Dashboard Users** (not public registration) |
 
 **Employer job posts** stay **pending** until a staff member publishes them in WordPress / portal admin.
@@ -252,4 +252,4 @@ I confirm I have received this documentation and that all `[FILL IN]` fields wil
 
 ---
 
-*End of Website Management & Credentials Documentation — E&S Care Service LLC*
+*End of Website Management & Credentials Documentation — E&S Care Services LLC*

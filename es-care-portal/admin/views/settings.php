@@ -22,10 +22,9 @@ $seeker_tiles = array(
 );
 
 $employer_tiles = array(
-	'post'       => __( 'Post a Job', 'es-care-portal' ),
-	'jobs'       => __( 'Company Jobs', 'es-care-portal' ),
-	'profile'    => __( 'Edit Profile', 'es-care-portal' ),
-	'membership' => __( 'Membership', 'es-care-portal' ),
+	'post'    => __( 'Post a Job', 'es-care-portal' ),
+	'jobs'    => __( 'Company Jobs', 'es-care-portal' ),
+	'profile' => __( 'Edit Profile', 'es-care-portal' ),
 );
 ?>
 <div class="wrap esc-admin">

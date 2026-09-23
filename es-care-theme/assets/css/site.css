@@ -97,16 +97,16 @@ a {
 	grid-template-columns: auto minmax(0, 1fr) auto;
 	gap: 1.15rem;
 	align-items: center;
-	min-height: 5.75rem;
-	padding-block: 0.55rem;
+	min-height: 6.5rem;
+	padding-block: 0.4rem;
 }
 
 .escare-logo {
 	display: block;
-	width: auto !important;
-	height: 4.75rem !important;
-	max-width: none !important;
-	max-height: 4.75rem;
+	width: 240px;
+	height: 90px;
+	max-width: 240px;
+	max-height: 90px;
 	object-fit: contain;
 	object-position: left center;
 	background: transparent;
@@ -714,9 +714,9 @@ a {
 
 .escare-footer-logo {
 	display: block;
-	width: auto;
-	height: 5.5rem;
-	max-width: none;
+	width: 240px;
+	height: 90px;
+	max-width: 240px;
 	object-fit: contain;
 	object-position: left center;
 	margin-bottom: 0.75rem;
@@ -887,12 +887,14 @@ body.escare-contact .esc-card--register {
 @media (max-width: 980px) {
 	.escare-header-bar {
 		grid-template-columns: 1fr auto;
-		min-height: 5.25rem;
+		min-height: 5.75rem;
 	}
 
 	.escare-logo {
-		height: 4.25rem !important;
-		max-height: 4.25rem;
+		width: 200px;
+		height: 75px;
+		max-width: 200px;
+		max-height: 75px;
 	}
 
 	.escare-nav {
@@ -932,12 +934,16 @@ body.escare-contact .esc-card--register {
 	}
 
 	.escare-logo {
-		height: 3.65rem !important;
-		max-height: 3.65rem;
+		width: 176px;
+		height: 66px;
+		max-width: 176px;
+		max-height: 66px;
 	}
 
 	.escare-footer-logo {
-		height: 4.5rem;
+		width: 200px;
+		height: 75px;
+		max-width: 200px;
 	}
 
 	.escare-menu-toggle {

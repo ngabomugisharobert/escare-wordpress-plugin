@@ -55,7 +55,9 @@ class ESC_Portal_Mail_Queue {
 	 * Register cron.
 	 */
 	public static function init() {
+		add_filter( 'cron_schedules', array( __CLASS__, 'cron_schedules' ) );
 		add_action( self::CRON_HOOK, array( __CLASS__, 'process' ) );
+		add_action( 'esc_portal_process_mail_queue_fast', array( __CLASS__, 'process' ) );
 		add_action( 'wp_mail_failed', array( __CLASS__, 'capture_failure' ) );
 		self::schedule();
 	}
@@ -64,6 +66,8 @@ class ESC_Portal_Mail_Queue {
 	 * Ensure the cron event exists.
 	 */
 	public static function schedule() {
+		add_filter( 'cron_schedules', array( __CLASS__, 'cron_schedules' ) );
+
 		if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
 			wp_schedule_event( time() + 60, 'hourly', self::CRON_HOOK );
 		}
@@ -71,9 +75,6 @@ class ESC_Portal_Mail_Queue {
 		if ( ! wp_next_scheduled( 'esc_portal_process_mail_queue_fast' ) ) {
 			wp_schedule_event( time() + 30, 'esc_portal_five_minutes', 'esc_portal_process_mail_queue_fast' );
 		}
-
-		add_action( 'esc_portal_process_mail_queue_fast', array( __CLASS__, 'process' ) );
-		add_filter( 'cron_schedules', array( __CLASS__, 'cron_schedules' ) );
 	}
 
 	/**
@@ -107,29 +108,40 @@ class ESC_Portal_Mail_Queue {
 			return false;
 		}
 
-		$now = current_time( 'mysql' );
-		$ok  = $wpdb->insert(
-			self::table(),
-			array(
-				'mail_to'      => sanitize_email( $to ),
-				'subject'      => sanitize_text_field( $subject ),
-				'body'         => (string) $body,
-				'headers'      => wp_json_encode( (array) $headers ),
-				'status'       => 'queued',
-				'attempts'     => 0,
-				'next_attempt' => $now,
-				'created_at'   => $now,
-				'updated_at'   => $now,
-			),
-			array( '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s' )
+		$now  = current_time( 'mysql' );
+		$row  = array(
+			'mail_to'      => sanitize_email( $to ),
+			'subject'      => sanitize_text_field( $subject ),
+			'body'         => (string) $body,
+			'headers'      => wp_json_encode( (array) $headers ),
+			'status'       => 'queued',
+			'attempts'     => 0,
+			'next_attempt' => $now,
+			'created_at'   => $now,
+			'updated_at'   => $now,
 		);
+		$fmt  = array( '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s' );
+		$ok   = $wpdb->insert( self::table(), $row, $fmt );
+
+		if ( ! $ok ) {
+			self::install();
+			$ok = $wpdb->insert( self::table(), $row, $fmt );
+		}
 
 		if ( ! $ok ) {
 			ESC_Portal_Health::log( 'error', 'mail', 'Failed to enqueue mail for ' . sanitize_email( $to ) );
 			return false;
 		}
 
-		return (int) $wpdb->insert_id;
+		$id  = (int) $wpdb->insert_id;
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE id = %d', $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		// Send now so password resets and other notices do not wait for WP-Cron.
+		if ( $row ) {
+			self::send_row( $row );
+		}
+
+		return $id;
 	}
 
 	/**
@@ -290,13 +302,18 @@ class ESC_Portal_Mail_Queue {
 		$failed   = $attempts >= self::MAX_TRIES;
 		$delay    = min( DAY_IN_SECONDS, pow( 2, $attempts ) * MINUTE_IN_SECONDS );
 		$error    = self::$last_error ? self::$last_error : __( 'Delivery failed.', 'es-care-portal' );
+		$retry_at = gmdate( 'Y-m-d H:i:s', current_time( 'timestamp' ) + $delay );
+
+		if ( ! $failed ) {
+			wp_schedule_single_event( time() + $delay, self::CRON_HOOK );
+		}
 
 		$wpdb->update(
 			self::table(),
 			array(
 				'status'       => $failed ? 'failed' : 'queued',
 				'attempts'     => $attempts,
-				'next_attempt' => gmdate( 'Y-m-d H:i:s', time() + $delay ),
+				'next_attempt' => $retry_at,
 				'last_error'   => $error,
 				'updated_at'   => $now,
 			),
