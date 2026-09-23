@@ -11,7 +11,7 @@ Do not email this file unencrypted. Store passwords in a password manager when p
 **Website:** https://escare-services.com  
 **Public contact email (site):** info@escareservices.com  
 **Phone:** 360-742-8095  
-**Business address:** 3917 Boulevard Rd SE, Olympia, WA 98501  
+**Business address:** 3817 Boulevard Rd SE, Olympia, WA 98501  
 
 ---
 
@@ -138,7 +138,7 @@ Also check: **ES Care Portal → Health** (schema, private storage writable, mai
 | Phone | 360-742-8095 |
 | Public email | info@escareservices.com |
 | Hours | 24/7 shift coverage |
-| Address | 3917 Boulevard Rd SE, Olympia, WA 98501 |
+| Address | 3817 Boulevard Rd SE, Olympia, WA 98501 |
 
 ---
 

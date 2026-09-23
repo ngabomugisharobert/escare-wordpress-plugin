@@ -73,7 +73,7 @@ function escare_customize_register( $wp_customize ) {
 	$wp_customize->add_setting(
 		'escare_address',
 		array(
-			'default'           => "3917 Boulevard Rd SE\nOlympia, WA 98501",
+			'default'           => "3817 Boulevard Rd SE\nOlympia, WA 98501",
 			'sanitize_callback' => 'sanitize_textarea_field',
 		)
 	);

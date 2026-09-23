@@ -166,7 +166,7 @@ function escare_hours() {
  * @return string
  */
 function escare_address() {
-	return escare_mod( 'escare_address', "3917 Boulevard Rd SE\nOlympia, WA 98501" );
+	return escare_mod( 'escare_address', "3817 Boulevard Rd SE\nOlympia, WA 98501" );
 }
 
 /**

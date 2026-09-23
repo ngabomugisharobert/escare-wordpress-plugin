@@ -65,7 +65,7 @@ function escare_seed_contact_defaults() {
 	$defaults = array(
 		'escare_phone'   => '360-742-8095',
 		'escare_hours'   => '24/7 shift coverage',
-		'escare_address' => "3917 Boulevard Rd SE\nOlympia, WA 98501",
+		'escare_address' => "3817 Boulevard Rd SE\nOlympia, WA 98501",
 	);
 
 	$placeholders = array(
