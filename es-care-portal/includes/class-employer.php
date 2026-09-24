@@ -94,9 +94,9 @@ class ESC_Portal_Employer {
 			ESC_Portal_Helpers::redirect_notice( $fallback, 'rate-limited', 'error' );
 		}
 
-		$job_id = isset( $_POST['esc_job_id'] ) ? absint( $_POST['esc_job_id'] ) : 0;
-		$title  = isset( $_POST['esc_job_title'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_job_title'] ) ) : '';
-		$body   = isset( $_POST['esc_job_content'] ) ? wp_kses_post( wp_unslash( $_POST['esc_job_content'] ) ) : '';
+		$job_id  = isset( $_POST['esc_job_id'] ) ? absint( $_POST['esc_job_id'] ) : 0;
+		$title   = isset( $_POST['esc_job_title'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_job_title'] ) ) : '';
+		$body    = isset( $_POST['esc_job_content'] ) ? wp_kses_post( wp_unslash( $_POST['esc_job_content'] ) ) : '';
 		$updated = (bool) $job_id;
 
 		if ( ! $title || ! $body ) {
@@ -116,15 +116,14 @@ class ESC_Portal_Employer {
 		);
 
 		if ( $job_id ) {
-			$existing          = get_post( $job_id );
-			$payload['ID']     = $job_id;
-			if ( $existing && 'publish' === $existing->post_status && ESC_Portal_Users::is_admin( $user ) ) {
-				$payload['post_status'] = 'publish';
-			} elseif ( $existing && ! ESC_Portal_Users::is_admin( $user ) ) {
-				$payload['post_status'] = 'pending';
-			} elseif ( $existing ) {
+			$existing      = get_post( $job_id );
+			$payload['ID'] = $job_id;
+
+			// Keep the current WordPress status so editing a live listing does not unpublish it.
+			if ( $existing && in_array( $existing->post_status, array( 'publish', 'pending', 'draft' ), true ) ) {
 				$payload['post_status'] = $existing->post_status;
 			}
+
 			$result = wp_update_post( $payload, true );
 		} else {
 			$result = wp_insert_post( $payload, true );
@@ -150,6 +149,7 @@ class ESC_Portal_Employer {
 		$type     = isset( $_POST['esc_employment_type'] ) ? sanitize_key( wp_unslash( $_POST['esc_employment_type'] ) ) : '';
 		$status   = isset( $_POST['esc_job_status'] ) ? sanitize_key( wp_unslash( $_POST['esc_job_status'] ) ) : 'open';
 		$cat      = isset( $_POST['esc_job_category'] ) ? absint( wp_unslash( $_POST['esc_job_category'] ) ) : 0;
+		$assess_id = isset( $_POST['esc_assessment_id'] ) ? absint( wp_unslash( $_POST['esc_assessment_id'] ) ) : 0;
 
 		$types    = ESC_Portal_Helpers::employment_types();
 		$statuses = ESC_Portal_Helpers::job_statuses();
@@ -166,12 +166,22 @@ class ESC_Portal_Employer {
 			$closing = '';
 		}
 
+		if ( $assess_id && ! ESC_Portal_Assessments::get( $assess_id ) ) {
+			$assess_id = 0;
+		}
+
 		update_post_meta( $job_id, '_esc_location', $location );
 		update_post_meta( $job_id, '_esc_shift', $shift );
 		update_post_meta( $job_id, '_esc_pay_range', $pay );
 		update_post_meta( $job_id, '_esc_closing_date', $closing );
 		update_post_meta( $job_id, '_esc_employment_type', $type );
 		update_post_meta( $job_id, '_esc_job_status', $status );
+
+		if ( $assess_id ) {
+			update_post_meta( $job_id, '_esc_assessment_id', $assess_id );
+		} else {
+			delete_post_meta( $job_id, '_esc_assessment_id' );
+		}
 
 		if ( $cat ) {
 			wp_set_object_terms( $job_id, array( $cat ), 'esc_job_category' );
@@ -182,7 +192,15 @@ class ESC_Portal_Employer {
 			ESC_Portal_Emails::job_pending_review( $user, $job_id );
 		}
 		wp_cache_delete( 'esc_job_locations', 'esc_portal' );
-		$notice = ( ! ESC_Portal_Users::is_admin( $user ) && 'publish' !== get_post_status( $job_id ) ) ? 'job-pending' : 'job-saved';
+
+		if ( $updated ) {
+			$notice = 'job-updated';
+		} elseif ( ! ESC_Portal_Users::is_admin( $user ) && 'publish' !== get_post_status( $job_id ) ) {
+			$notice = 'job-pending';
+		} else {
+			$notice = 'job-saved';
+		}
+
 		ESC_Portal_Helpers::redirect_notice( ESC_Portal_Helpers::dashboard_url( 'jobs' ), $notice, 'success' );
 	}
 

@@ -20,10 +20,18 @@ $status   = $job_id ? get_post_meta( $job_id, '_esc_job_status', true ) : 'open'
 $terms    = $job_id ? wp_get_post_terms( $job_id, 'esc_job_category' ) : array();
 $cat_id   = ( $terms && ! is_wp_error( $terms ) && ! empty( $terms ) ) ? (int) $terms[0]->term_id : 0;
 $cats     = get_terms( array( 'taxonomy' => 'esc_job_category', 'hide_empty' => false ) );
+$assessments_list = ESC_Portal_Assessments::all_active();
+$assessment_id    = $job_id ? absint( get_post_meta( $job_id, '_esc_assessment_id', true ) ) : 0;
 ?>
 <section class="esc-dash-panel">
 	<h2 class="esc-dash-title esc-dash-title--rule"><?php echo $job_id ? esc_html__( 'Edit Job', 'es-care-portal' ) : esc_html__( 'Post a Job', 'es-care-portal' ); ?></h2>
-	<p class="esc-dash-copy"><?php esc_html_e( 'Add a listing for candidates to find. You can close or update it anytime from Company Jobs.', 'es-care-portal' ); ?></p>
+	<p class="esc-dash-copy">
+		<?php
+		echo $job_id
+			? esc_html__( 'Update this listing, then save. Changes to a published job stay live.', 'es-care-portal' )
+			: esc_html__( 'Add a listing for candidates to find. You can edit or close it anytime from Company Jobs.', 'es-care-portal' );
+		?>
+	</p>
 
 	<form class="esc-form esc-card" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 		<?php wp_nonce_field( 'esc_save_job_front', 'esc_job_front_nonce' ); ?>
@@ -84,8 +92,18 @@ $cats     = get_terms( array( 'taxonomy' => 'esc_job_category', 'hide_empty' => 
 				</select>
 			</p>
 		<?php endif; ?>
+		<p class="esc-field">
+			<label for="esc_assessment_id"><?php esc_html_e( 'Required assessment', 'es-care-portal' ); ?></label>
+			<select id="esc_assessment_id" name="esc_assessment_id">
+				<option value="0"><?php esc_html_e( 'None', 'es-care-portal' ); ?></option>
+				<?php foreach ( $assessments_list as $a ) : ?>
+					<option value="<?php echo esc_attr( (string) $a->id ); ?>" <?php selected( $assessment_id, (int) $a->id ); ?>><?php echo esc_html( $a->title ); ?></option>
+				<?php endforeach; ?>
+			</select>
+			<span class="esc-help"><?php esc_html_e( 'Seekers who apply to this job will be asked to take this test.', 'es-care-portal' ); ?></span>
+		</p>
 		<p class="esc-actions">
-			<button type="submit" class="esc-button"><?php esc_html_e( 'Save job', 'es-care-portal' ); ?></button>
+			<button type="submit" class="esc-button"><?php echo $job_id ? esc_html__( 'Update job', 'es-care-portal' ) : esc_html__( 'Save job', 'es-care-portal' ); ?></button>
 			<a class="esc-button esc-button--ghost" href="<?php echo esc_url( ESC_Portal_Helpers::dashboard_url( 'jobs' ) ); ?>"><?php esc_html_e( 'Back to jobs', 'es-care-portal' ); ?></a>
 		</p>
 	</form>

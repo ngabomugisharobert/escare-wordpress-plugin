@@ -78,6 +78,12 @@ $total_users = (int) $user_counts['job_seeker'] + (int) $user_counts['employer']
 		</span>
 		<?php esc_html_e( 'Applications', 'es-care-portal' ); ?>
 	</a>
+	<a class="esc-tile" href="<?php echo esc_url( ESC_Portal_Helpers::dashboard_url( 'assessments' ) ); ?>">
+		<span class="esc-tile-icon" aria-hidden="true">
+			<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+		</span>
+		<?php esc_html_e( 'Assessments', 'es-care-portal' ); ?>
+	</a>
 	<a class="esc-tile" href="<?php echo esc_url( ESC_Portal_Helpers::dashboard_url( 'contact' ) ); ?>">
 		<span class="esc-tile-icon" aria-hidden="true">
 			<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg>

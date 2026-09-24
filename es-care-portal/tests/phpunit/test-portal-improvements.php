@@ -115,7 +115,7 @@ class ESC_Portal_Improvement_Tests extends WP_UnitTestCase {
 		$admin = ESC_Portal_Helpers::dashboard_views( 'admin' );
 		$this->assertContains( 'conduct', $seeker );
 		$this->assertContains( 'conduct', $employer );
-		$this->assertSame( array( 'home', 'users', 'jobs', 'applications', 'conduct' ), $admin );
+		$this->assertSame( array( 'home', 'users', 'jobs', 'post', 'applications', 'assessments', 'assessment', 'conduct' ), $admin );
 		$this->assertNotContains( 'contact', $admin );
 		$this->assertNotContains( 'apply', $admin );
 	}

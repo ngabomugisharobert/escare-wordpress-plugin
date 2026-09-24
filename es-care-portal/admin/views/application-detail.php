@@ -18,7 +18,6 @@ $auth_label = isset( $auth_opts[ $snap['work_authorization'] ] ) ? $auth_opts[ $
 $states     = ESC_Portal_Helpers::us_states();
 $state_label = isset( $states[ $snap['state'] ] ) ? $states[ $snap['state'] ] : $snap['state'];
 $estate_label = isset( $states[ $snap['emergency_state'] ] ) ? $states[ $snap['emergency_state'] ] : $snap['emergency_state'];
-$resume     = $snap['resume_file'];
 ?>
 <div class="wrap esc-admin esc-admin-detail">
 	<p><a href="<?php echo esc_url( admin_url( 'admin.php?page=esc-applications' ) ); ?>">&larr; <?php esc_html_e( 'All applications', 'es-care-portal' ); ?></a></p>
@@ -93,16 +92,25 @@ $resume     = $snap['resume_file'];
 				<?php echo $snap['cover_letter'] ? wpautop( esc_html( $snap['cover_letter'] ) ) : '<p>' . esc_html__( 'None provided.', 'es-care-portal' ) . '</p>'; ?>
 			</div>
 
-			<h2><?php esc_html_e( 'Resume', 'es-care-portal' ); ?></h2>
-			<?php if ( $resume ) : ?>
-				<p><a class="button button-primary" href="<?php echo esc_url( ESC_Portal_Uploads::download_url( $application_id ) ); ?>"><?php esc_html_e( 'Download resume', 'es-care-portal' ); ?></a>
-				<?php if ( $snap['resume_name'] ) : ?>
-					<span class="esc-muted"><?php echo esc_html( $snap['resume_name'] ); ?></span>
-				<?php endif; ?>
-				</p>
-			<?php else : ?>
-				<p><?php esc_html_e( 'No resume on file.', 'es-care-portal' ); ?></p>
-			<?php endif; ?>
+			<h2><?php esc_html_e( 'Documents', 'es-care-portal' ); ?></h2>
+			<ul class="esc-doc-list">
+				<?php foreach ( ESC_Portal_Uploads::document_types() as $doc_key => $doc ) : ?>
+					<?php
+					$file_meta = (string) get_post_meta( $application_id, $doc['meta_file'], true );
+					$name_meta = (string) get_post_meta( $application_id, $doc['meta_name'], true );
+					?>
+					<li>
+						<strong><?php echo esc_html( $doc['label'] ); ?>:</strong>
+						<?php if ( $file_meta ) : ?>
+							<a href="<?php echo esc_url( ESC_Portal_Uploads::download_url( $application_id, $doc_key ) ); ?>">
+								<?php echo esc_html( $name_meta ? $name_meta : __( 'Download', 'es-care-portal' ) ); ?>
+							</a>
+						<?php else : ?>
+							<span class="esc-muted"><?php esc_html_e( 'Not on file', 'es-care-portal' ); ?></span>
+						<?php endif; ?>
+					</li>
+				<?php endforeach; ?>
+			</ul>
 		</div>
 
 		<div class="esc-admin-panel">

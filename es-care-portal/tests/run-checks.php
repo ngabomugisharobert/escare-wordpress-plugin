@@ -125,8 +125,8 @@ if ( preg_match( "/'contact'\\s*=>/", $admin_sidebar ) ) {
 }
 
 $admin_views = file_get_contents( $root . '/includes/class-helpers.php' );
-if ( ! preg_match( "/if \\( 'admin' === \\$role \\) \\{[\\s\\S]*return array\\( 'home', 'users', 'jobs', 'applications' \\)/", $admin_views ) ) {
-	esc_check_fail( $fails, 'admin dashboard_views must be home, users, jobs, applications' );
+if ( ! preg_match( "/if \\( 'admin' === \\$role \\) \\{[\\s\\S]*return array\\( 'home', 'users', 'jobs', 'post', 'applications', 'assessments', 'assessment'/", $admin_views ) ) {
+	esc_check_fail( $fails, 'admin dashboard_views must include assessments management views' );
 } else {
 	esc_check_pass( 'admin dashboard views omit contact' );
 }

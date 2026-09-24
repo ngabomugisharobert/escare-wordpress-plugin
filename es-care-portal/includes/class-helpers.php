@@ -29,7 +29,7 @@ class ESC_Portal_Helpers {
 			'smtp_password'         => '',
 			'smtp_from_email'       => 'info@escareservices.com',
 			'smtp_from_name'        => '',
-			'max_file_mb'           => 5,
+			'max_file_mb'           => 8,
 			'allowed_types'         => array( 'pdf', 'doc', 'docx' ),
 			'color_accent'          => '#4caf50',
 			'color_sidebar'         => '#66bb6a',
@@ -268,6 +268,31 @@ class ESC_Portal_Helpers {
 	}
 
 	/**
+	 * Frontend URL to edit a job listing (employer dashboard or post-job page).
+	 *
+	 * @param int $job_id Job post ID.
+	 * @return string
+	 */
+	public static function job_edit_url( $job_id ) {
+		$job_id = absint( $job_id );
+		$user   = ESC_Portal_Auth::current_user();
+
+		if ( ! $job_id ) {
+			return self::get_page_url( 'post-job' );
+		}
+
+		if ( $user && ESC_Portal_Users::is_employer( $user ) ) {
+			return self::dashboard_url( 'post', array( 'job' => $job_id ) );
+		}
+
+		if ( $user && ESC_Portal_Users::is_admin( $user ) ) {
+			return self::dashboard_url( 'post', array( 'job' => $job_id ) );
+		}
+
+		return self::get_page_url( 'post-job', array( 'job' => $job_id ) );
+	}
+
+	/**
 	 * Current dashboard view for seekers or employers.
 	 *
 	 * @param string $role Role context: seeker|employer.
@@ -332,7 +357,7 @@ class ESC_Portal_Helpers {
 		}
 
 		if ( 'admin' === $role ) {
-			return array( 'home', 'users', 'jobs', 'applications', 'conduct' );
+			return array( 'home', 'users', 'jobs', 'post', 'applications', 'assessments', 'assessment', 'conduct' );
 		}
 
 		return array( 'home', 'apply', 'assessments', 'take', 'results', 'forms', 'password', 'request', 'conduct' );
@@ -902,8 +927,8 @@ class ESC_Portal_Helpers {
 			'job-closed'        => __( 'This position is no longer accepting applications.', 'es-care-portal' ),
 			'duplicate'         => __( 'You have already applied for this position.', 'es-care-portal' ),
 			'invalid-job'       => __( 'That job could not be found.', 'es-care-portal' ),
-			'upload-required'   => __( 'Please attach a resume or CV.', 'es-care-portal' ),
-			'upload-failed'     => __( 'The resume could not be uploaded. Check the file type and size.', 'es-care-portal' ),
+			'upload-required'   => __( 'Please upload all required documents: food handling certificate, CPR/First Aid, license, and CV.', 'es-care-portal' ),
+			'upload-failed'     => __( 'A required document could not be uploaded. Check the file type and size, then try again.', 'es-care-portal' ),
 			'locked-out'        => __( 'Too many failed sign-in attempts. Please wait 15 minutes and try again.', 'es-care-portal' ),
 			'invalid-login'     => __( 'The email or password is incorrect.', 'es-care-portal' ),
 			'email-exists'      => __( 'An account with that email already exists. Sign in instead.', 'es-care-portal' ),
@@ -920,6 +945,7 @@ class ESC_Portal_Helpers {
 			'status-saved'      => __( 'Application status saved.', 'es-care-portal' ),
 			'user-updated'      => __( 'User updated.', 'es-care-portal' ),
 			'job-saved'         => __( 'Job listing saved.', 'es-care-portal' ),
+			'job-updated'       => __( 'Job listing updated.', 'es-care-portal' ),
 			'job-deleted'       => __( 'Job listing removed.', 'es-care-portal' ),
 			'user-deleted'      => __( 'Dashboard user permanently deleted.', 'es-care-portal' ),
 			'application-deleted' => __( 'Application moved to Trash.', 'es-care-portal' ),
@@ -932,6 +958,9 @@ class ESC_Portal_Helpers {
 			'deletion-pending'  => __( 'A deletion request for this account is already waiting for administrator review.', 'es-care-portal' ),
 			'assessment-passed' => __( 'You passed the assessment. Download employment forms when you are ready.', 'es-care-portal' ),
 			'assessment-failed' => __( 'Your assessment was recorded. You can review the score and try again.', 'es-care-portal' ),
+			'assessment-saved'  => __( 'Assessment saved.', 'es-care-portal' ),
+			'assessment-updated'=> __( 'Assessment updated.', 'es-care-portal' ),
+			'assessment-deleted'=> __( 'Assessment deleted.', 'es-care-portal' ),
 			'request-sent'      => __( 'Your service request was sent. We will follow up with you.', 'es-care-portal' ),
 			'contact-sent'      => __( 'Thanks — your message was sent. We will follow up with you.', 'es-care-portal' ),
 			'verify-email'      => __( 'Check your email for an activation link. The link expires in 24 hours.', 'es-care-portal' ),

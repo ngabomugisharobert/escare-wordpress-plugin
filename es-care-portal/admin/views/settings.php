@@ -42,9 +42,10 @@ $employer_tiles = array(
 				</td>
 			</tr>
 			<tr>
-				<th scope="row"><label for="max_file_mb"><?php esc_html_e( 'Max resume size (MB)', 'es-care-portal' ); ?></label></th>
+				<th scope="row"><label for="max_file_mb"><?php esc_html_e( 'Max document size (MB)', 'es-care-portal' ); ?></label></th>
 				<td>
 					<input type="number" min="1" max="25" id="max_file_mb" name="max_file_mb" value="<?php echo esc_attr( (string) $settings['max_file_mb'] ); ?>">
+					<p class="description"><?php esc_html_e( 'Applies to certificates and CV uploads on the application form.', 'es-care-portal' ); ?></p>
 				</td>
 			</tr>
 			<tr>

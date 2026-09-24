@@ -101,7 +101,8 @@ class ESC_Portal_Plugin {
 			array(
 				'showPassword'  => __( 'Show password', 'es-care-portal' ),
 				'hidePassword'  => __( 'Hide password', 'es-care-portal' ),
-				'resumeTooBig'  => __( 'That resume is larger than the allowed file size.', 'es-care-portal' ),
+				'resumeTooBig'  => __( 'That file is larger than the allowed size.', 'es-care-portal' ),
+				'fileTypeBad'   => __( 'That file type is not allowed for this upload.', 'es-care-portal' ),
 				'zeroResults'   => __( 'No matching rows on this page.', 'es-care-portal' ),
 				'resultCount'   => __( '%1$s of %2$s on this page (%3$s total)', 'es-care-portal' ),
 				'moderationOk'  => __( 'Approve this listing?', 'es-care-portal' ),

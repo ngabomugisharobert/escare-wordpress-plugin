@@ -120,13 +120,15 @@ class ESC_Portal_CPT_Job {
 		$pay        = get_post_meta( $post->ID, '_esc_pay_range', true );
 		$closing    = get_post_meta( $post->ID, '_esc_closing_date', true );
 		$status     = get_post_meta( $post->ID, '_esc_job_status', true );
+		$assessment = absint( get_post_meta( $post->ID, '_esc_assessment_id', true ) );
 
 		if ( ! $status ) {
 			$status = 'open';
 		}
 
-		$types    = ESC_Portal_Helpers::employment_types();
-		$statuses = ESC_Portal_Helpers::job_statuses();
+		$types       = ESC_Portal_Helpers::employment_types();
+		$statuses    = ESC_Portal_Helpers::job_statuses();
+		$assessments = ESC_Portal_Assessments::all_active();
 		?>
 		<div class="esc-job-meta">
 			<p>
@@ -162,6 +164,15 @@ class ESC_Portal_CPT_Job {
 					<?php endforeach; ?>
 				</select>
 			</p>
+			<p>
+				<label for="esc_assessment_id"><?php esc_html_e( 'Required assessment', 'es-care-portal' ); ?></label>
+				<select id="esc_assessment_id" name="esc_assessment_id" class="widefat">
+					<option value="0"><?php esc_html_e( 'None', 'es-care-portal' ); ?></option>
+					<?php foreach ( $assessments as $a ) : ?>
+						<option value="<?php echo esc_attr( (string) $a->id ); ?>" <?php selected( $assessment, (int) $a->id ); ?>><?php echo esc_html( $a->title ); ?></option>
+					<?php endforeach; ?>
+				</select>
+			</p>
 		</div>
 		<?php
 	}
@@ -189,6 +200,7 @@ class ESC_Portal_CPT_Job {
 		$closing  = isset( $_POST['esc_closing_date'] ) ? sanitize_text_field( wp_unslash( $_POST['esc_closing_date'] ) ) : '';
 		$type     = isset( $_POST['esc_employment_type'] ) ? sanitize_key( wp_unslash( $_POST['esc_employment_type'] ) ) : '';
 		$status   = isset( $_POST['esc_job_status'] ) ? sanitize_key( wp_unslash( $_POST['esc_job_status'] ) ) : 'open';
+		$assess   = isset( $_POST['esc_assessment_id'] ) ? absint( wp_unslash( $_POST['esc_assessment_id'] ) ) : 0;
 
 		$types    = ESC_Portal_Helpers::employment_types();
 		$statuses = ESC_Portal_Helpers::job_statuses();
@@ -205,12 +217,23 @@ class ESC_Portal_CPT_Job {
 			$closing = '';
 		}
 
+		if ( $assess && ! ESC_Portal_Assessments::get( $assess ) ) {
+			$assess = 0;
+		}
+
 		update_post_meta( $post_id, '_esc_location', $location );
 		update_post_meta( $post_id, '_esc_shift', $shift );
 		update_post_meta( $post_id, '_esc_pay_range', $pay );
 		update_post_meta( $post_id, '_esc_closing_date', $closing );
 		update_post_meta( $post_id, '_esc_employment_type', $type );
 		update_post_meta( $post_id, '_esc_job_status', $status );
+
+		if ( $assess ) {
+			update_post_meta( $post_id, '_esc_assessment_id', $assess );
+		} else {
+			delete_post_meta( $post_id, '_esc_assessment_id' );
+		}
+
 		wp_cache_delete( 'esc_job_locations', 'esc_portal' );
 	}
 

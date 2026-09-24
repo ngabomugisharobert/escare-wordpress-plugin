@@ -69,14 +69,25 @@ foreach ( $cpts as $type ) {
 	);
 
 	foreach ( $ids as $id ) {
-		$file = get_post_meta( $id, '_esc_resume_file', true );
-		if ( $file ) {
+		$file_keys = array(
+			'_esc_resume_file',
+			'_esc_food_handler_file',
+			'_esc_cpr_first_aid_file',
+			'_esc_license_file',
+		);
+
+		foreach ( $file_keys as $meta_key ) {
+			$file = get_post_meta( $id, $meta_key, true );
+			if ( ! $file ) {
+				continue;
+			}
+
 			$basename = basename( (string) $file );
 			$dirs     = array();
 			if ( defined( 'ESC_PORTAL_PRIVATE_DIR' ) && ESC_PORTAL_PRIVATE_DIR ) {
 				$dirs[] = trailingslashit( ESC_PORTAL_PRIVATE_DIR ) . 'esc-resumes';
 			}
-			$dirs[] = trailingslashit( dirname( ABSPATH ) ) . 'esc-portal-private/esc-resumes';
+			$dirs[]  = trailingslashit( dirname( ABSPATH ) ) . 'esc-portal-private/esc-resumes';
 			$uploads = wp_upload_dir();
 			if ( ! empty( $uploads['basedir'] ) ) {
 				$dirs[] = trailingslashit( $uploads['basedir'] ) . 'esc-resumes';

@@ -447,11 +447,39 @@ class ESC_Portal_Shortcodes {
 			'user_counts'     => ESC_Portal_Users::counts_by_role(),
 			'home_metrics'    => array(),
 			'employers'       => array(),
+			'edit_job'        => null,
+			'assessments'     => array(),
+			'assessment'      => null,
+			'questions'       => array(),
+			'attempts'        => array(),
+			'question_counts' => array(),
 		);
 
 		if ( 'home' === $view ) {
 			$args['home_metrics'] = self::admin_home_metrics();
 			return $args;
+		}
+
+		if ( 'post' === $view ) {
+			$job_id = isset( $_GET['job'] ) ? absint( $_GET['job'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+			if ( $job_id && ESC_Portal_Helpers::can_manage_job( $job_id ) ) {
+				$args['edit_job'] = get_post( $job_id );
+			}
+		}
+
+		if ( 'assessments' === $view ) {
+			$args['assessments']     = ESC_Portal_Assessments::all();
+			$args['question_counts'] = ESC_Portal_Assessments::question_counts();
+			$args['attempts']        = ESC_Portal_Assessments::all_attempts();
+		}
+
+		if ( 'assessment' === $view ) {
+			$aid = isset( $_GET['assessment'] ) ? absint( $_GET['assessment'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			if ( $aid ) {
+				$args['assessment'] = ESC_Portal_Assessments::get( $aid );
+				$args['questions']  = $args['assessment'] ? ESC_Portal_Assessments::questions( $aid ) : array();
+			}
 		}
 
 		if ( 'users' === $view ) {
@@ -578,7 +606,7 @@ class ESC_Portal_Shortcodes {
 		}
 
 		if ( in_array( $view, array( 'home', 'assessments', 'take' ), true ) ) {
-			$args['assessments'] = ESC_Portal_Assessments::all_active();
+			$args['assessments'] = ESC_Portal_Assessments::for_seeker( $user->id );
 		}
 
 		if ( in_array( $view, array( 'home', 'results' ), true ) ) {

@@ -177,7 +177,7 @@ class ESC_Portal_Blocks {
 				'view'             => $view,
 				'profile_complete' => ESC_Portal_Helpers::is_profile_complete( $user->id ),
 				'applications'     => ESC_Portal_CPT_Application::for_user( $user->id ),
-				'assessments'      => ESC_Portal_Assessments::all_active(),
+				'assessments'      => ESC_Portal_Assessments::for_seeker( $user->id ),
 				'attempts'         => ESC_Portal_Assessments::attempts_for_user( $user->id ),
 				'forms'            => ESC_Portal_Forms::all(),
 				'requests'         => ESC_Portal_Forms::requests_for_user( $user->id ),

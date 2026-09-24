@@ -73,8 +73,14 @@ class ESC_Portal_Apply {
 			ESC_Portal_Helpers::redirect_notice( $apply, 'required', 'error' );
 		}
 
-		if ( empty( $_FILES['esc_resume'] ) || empty( $_FILES['esc_resume']['tmp_name'] ) ) {
-			ESC_Portal_Helpers::redirect_notice( $apply, 'upload-required', 'error' );
+		$doc_types = ESC_Portal_Uploads::document_types();
+
+		foreach ( $doc_types as $doc ) {
+			$field = $doc['field'];
+
+			if ( empty( $_FILES[ $field ] ) || empty( $_FILES[ $field ]['tmp_name'] ) ) {
+				ESC_Portal_Helpers::redirect_notice( $apply, 'upload-required', 'error' );
+			}
 		}
 
 		$data['email'] = $user->email;
@@ -100,26 +106,42 @@ class ESC_Portal_Apply {
 			ESC_Portal_Helpers::redirect_notice( $apply, 'required', 'error' );
 		}
 
-		$stored = ESC_Portal_Uploads::handle_upload( $_FILES['esc_resume'], $user->id, $application_id ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$stored_files = array();
 
-		if ( is_wp_error( $stored ) ) {
-			wp_delete_post( $application_id, true );
-			$code = 'esc_upload_storage' === $stored->get_error_code() ? 'storage-unavailable' : 'upload-failed';
-			ESC_Portal_Helpers::redirect_notice( $apply, $code, 'error' );
+		foreach ( $doc_types as $doc_key => $doc ) {
+			$field  = $doc['field'];
+			$stored = ESC_Portal_Uploads::handle_upload( $_FILES[ $field ], $user->id, $application_id, $doc_key ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+
+			if ( is_wp_error( $stored ) ) {
+				foreach ( $stored_files as $path ) {
+					ESC_Portal_Uploads::delete_file( $path );
+				}
+				wp_delete_post( $application_id, true );
+				$code = 'esc_upload_storage' === $stored->get_error_code() ? 'storage-unavailable' : 'upload-failed';
+				ESC_Portal_Helpers::redirect_notice( $apply, $code, 'error' );
+			}
+
+			$stored_files[ $doc_key ] = $stored;
+			update_post_meta( $application_id, $doc['meta_file'], $stored );
+			update_post_meta(
+				$application_id,
+				$doc['meta_name'],
+				isset( $_FILES[ $field ]['name'] ) ? sanitize_file_name( wp_unslash( $_FILES[ $field ]['name'] ) ) : sanitize_file_name( $doc_key )
+			);
 		}
 
 		$meta_ok = update_post_meta( $application_id, '_esc_job_id', $job_id )
 			&& update_post_meta( $application_id, '_esc_user_id', $user->id )
-			&& update_post_meta( $application_id, '_esc_status', 'pending' )
-			&& update_post_meta( $application_id, '_esc_resume_file', $stored );
+			&& update_post_meta( $application_id, '_esc_status', 'pending' );
 
 		if ( ! $meta_ok ) {
-			ESC_Portal_Uploads::delete_file( $stored );
+			foreach ( $stored_files as $path ) {
+				ESC_Portal_Uploads::delete_file( $path );
+			}
 			wp_delete_post( $application_id, true );
 			ESC_Portal_Helpers::redirect_notice( $apply, 'save-failed', 'error' );
 		}
 
-		update_post_meta( $application_id, '_esc_resume_name', isset( $_FILES['esc_resume']['name'] ) ? sanitize_file_name( wp_unslash( $_FILES['esc_resume']['name'] ) ) : 'resume' );
 		update_post_meta( $application_id, '_esc_notes', '' );
 
 		ESC_Portal_CPT_Application::save_snapshot( $application_id, $data );

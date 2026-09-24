@@ -34,6 +34,7 @@ class ESC_Portal_Activator {
 		ESC_Portal_Users::activate_awaiting_approval();
 		flush_rewrite_rules();
 		ESC_Portal_Schema::maybe_upgrade();
+		self::ensure_document_upload_limit();
 		update_option( ESC_Portal_Helpers::VERSION_KEY, ESC_PORTAL_VERSION, false );
 	}
 
@@ -54,7 +55,22 @@ class ESC_Portal_Activator {
 		ESC_Portal_Mail_Queue::schedule();
 		ESC_Portal_Privacy::schedule();
 		ESC_Portal_Users::activate_awaiting_approval();
+		self::ensure_document_upload_limit();
 		update_option( ESC_Portal_Helpers::VERSION_KEY, ESC_PORTAL_VERSION, false );
+	}
+
+	/**
+	 * Raise the application document upload limit to at least 8 MB.
+	 */
+	private static function ensure_document_upload_limit() {
+		$settings = ESC_Portal_Helpers::get_settings();
+
+		if ( absint( $settings['max_file_mb'] ) >= 8 ) {
+			return;
+		}
+
+		$settings['max_file_mb'] = 8;
+		ESC_Portal_Helpers::update_settings( $settings );
 	}
 
 	/**

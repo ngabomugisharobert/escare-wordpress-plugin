@@ -117,7 +117,60 @@ class ESC_Portal_Uploads {
 	}
 
 	/**
-	 * Allowed MIME types keyed by extension.
+	 * Required application document types (certificates + CV).
+	 *
+	 * @return array<string,array{label:string,field:string,meta_file:string,meta_name:string,required:bool,images:bool}>
+	 */
+	public static function document_types() {
+		return array(
+			'food_handler'  => array(
+				'label'     => __( 'Food handling certificate', 'es-care-portal' ),
+				'field'     => 'esc_food_handler',
+				'meta_file' => '_esc_food_handler_file',
+				'meta_name' => '_esc_food_handler_name',
+				'required'  => true,
+				'images'    => true,
+			),
+			'cpr_first_aid' => array(
+				'label'     => __( 'CPR / First Aid certificate', 'es-care-portal' ),
+				'field'     => 'esc_cpr_first_aid',
+				'meta_file' => '_esc_cpr_first_aid_file',
+				'meta_name' => '_esc_cpr_first_aid_name',
+				'required'  => true,
+				'images'    => true,
+			),
+			'license'       => array(
+				'label'     => __( 'License', 'es-care-portal' ),
+				'field'     => 'esc_license_file',
+				'meta_file' => '_esc_license_file',
+				'meta_name' => '_esc_license_name',
+				'required'  => true,
+				'images'    => true,
+			),
+			'resume'        => array(
+				'label'     => __( 'CV / Resume', 'es-care-portal' ),
+				'field'     => 'esc_resume',
+				'meta_file' => '_esc_resume_file',
+				'meta_name' => '_esc_resume_name',
+				'required'  => true,
+				'images'    => false,
+			),
+		);
+	}
+
+	/**
+	 * @param string $doc_type Document type key.
+	 * @return array|null
+	 */
+	public static function document_type( $doc_type ) {
+		$types = self::document_types();
+		$key   = sanitize_key( $doc_type );
+
+		return isset( $types[ $key ] ) ? $types[ $key ] : null;
+	}
+
+	/**
+	 * Allowed MIME types keyed by extension (document uploads).
 	 *
 	 * @return array<string,string>
 	 */
@@ -142,6 +195,58 @@ class ESC_Portal_Uploads {
 	}
 
 	/**
+	 * MIME map for a document type (certificates may include images).
+	 *
+	 * @param string $doc_type Document type key.
+	 * @return array<string,string>
+	 */
+	public static function allowed_mimes_for( $doc_type ) {
+		$allowed = self::allowed_mimes();
+		$doc     = self::document_type( $doc_type );
+
+		if ( $doc && ! empty( $doc['images'] ) ) {
+			$allowed['jpg']  = 'image/jpeg';
+			$allowed['jpeg'] = 'image/jpeg';
+			$allowed['png']  = 'image/png';
+		}
+
+		return $allowed;
+	}
+
+	/**
+	 * Accept attribute for a file input.
+	 *
+	 * @param string $doc_type Document type key.
+	 * @return string
+	 */
+	public static function accept_attr( $doc_type ) {
+		$parts = array();
+
+		foreach ( self::allowed_mimes_for( $doc_type ) as $ext => $mime ) {
+			$parts[] = '.' . $ext;
+			$parts[] = $mime;
+		}
+
+		return implode( ',', array_unique( $parts ) );
+	}
+
+	/**
+	 * Human-readable allowed formats for a document type.
+	 *
+	 * @param string $doc_type Document type key.
+	 * @return string
+	 */
+	public static function formats_help( $doc_type ) {
+		$doc = self::document_type( $doc_type );
+
+		if ( $doc && ! empty( $doc['images'] ) ) {
+			return __( 'PDF, DOC, DOCX, JPG, or PNG.', 'es-care-portal' );
+		}
+
+		return __( 'PDF, DOC, or DOCX.', 'es-care-portal' );
+	}
+
+	/**
 	 * @return int
 	 */
 	public static function max_bytes() {
@@ -151,40 +256,66 @@ class ESC_Portal_Uploads {
 	}
 
 	/**
-	 * Handle a resume upload and return stored relative filename.
+	 * Handle a document upload and return stored relative filename.
 	 *
-	 * @param array $file            $_FILES entry.
-	 * @param int   $user_id         User ID.
-	 * @param int   $application_id  Application ID.
+	 * @param array  $file            $_FILES entry.
+	 * @param int    $user_id         User ID.
+	 * @param int    $application_id  Application ID.
+	 * @param string $doc_type        Document type key.
 	 * @return string|WP_Error Relative filename or error.
 	 */
-	public static function handle_upload( $file, $user_id, $application_id ) {
+	public static function handle_upload( $file, $user_id, $application_id, $doc_type = 'resume' ) {
+		$doc = self::document_type( $doc_type );
+
+		if ( ! $doc ) {
+			$doc_type = 'resume';
+			$doc      = self::document_type( 'resume' );
+		}
+
+		$label = $doc['label'];
+
 		if ( ! self::ensure_directory() ) {
 			return new WP_Error( 'esc_upload_storage', __( 'Private file storage is unavailable.', 'es-care-portal' ) );
 		}
 
 		if ( empty( $file['tmp_name'] ) || ! is_uploaded_file( $file['tmp_name'] ) ) {
-			return new WP_Error( 'esc_upload_missing', __( 'Please attach a resume or CV.', 'es-care-portal' ) );
+			return new WP_Error(
+				'esc_upload_missing',
+				/* translators: %s: document label */
+				sprintf( __( 'Please attach your %s.', 'es-care-portal' ), $label )
+			);
 		}
 
 		if ( ! empty( $file['error'] ) && UPLOAD_ERR_OK !== (int) $file['error'] ) {
-			return new WP_Error( 'esc_upload_error', __( 'The resume could not be uploaded.', 'es-care-portal' ) );
+			return new WP_Error(
+				'esc_upload_error',
+				/* translators: %s: document label */
+				sprintf( __( 'The %s could not be uploaded.', 'es-care-portal' ), $label )
+			);
 		}
 
 		$size = isset( $file['size'] ) ? (int) $file['size'] : 0;
 
 		if ( $size <= 0 || $size > self::max_bytes() ) {
-			return new WP_Error( 'esc_upload_size', __( 'The resume exceeds the maximum file size.', 'es-care-portal' ) );
+			return new WP_Error(
+				'esc_upload_size',
+				/* translators: %s: document label */
+				sprintf( __( 'The %s exceeds the maximum file size.', 'es-care-portal' ), $label )
+			);
 		}
 
 		$filename = isset( $file['name'] ) ? $file['name'] : '';
-		$check    = wp_check_filetype_and_ext( $file['tmp_name'], $filename, self::allowed_mimes() );
+		$allowed  = self::allowed_mimes_for( $doc_type );
+		$check    = wp_check_filetype_and_ext( $file['tmp_name'], $filename, $allowed );
 		$ext      = ! empty( $check['ext'] ) ? strtolower( $check['ext'] ) : '';
 		$type     = ! empty( $check['type'] ) ? $check['type'] : '';
-		$allowed  = self::allowed_mimes();
 
 		if ( ! $ext || ! isset( $allowed[ $ext ] ) || ! $type ) {
-			return new WP_Error( 'esc_upload_type', __( 'Resume must be a PDF, DOC, or DOCX file.', 'es-care-portal' ) );
+			return new WP_Error(
+				'esc_upload_type',
+				/* translators: 1: document label, 2: allowed formats */
+				sprintf( __( '%1$s must be a %2$s', 'es-care-portal' ), $label, self::formats_help( $doc_type ) )
+			);
 		}
 
 		$real_mime = '';
@@ -202,16 +333,27 @@ class ESC_Portal_Uploads {
 		$ok_mimes[] = 'application/zip'; // some servers report docx as zip.
 
 		if ( $real_mime && ! in_array( $real_mime, $ok_mimes, true ) ) {
-			if ( ! ( 'docx' === $ext && in_array( $real_mime, array( 'application/zip', 'application/octet-stream' ), true ) ) ) {
-				return new WP_Error( 'esc_upload_mime', __( 'Resume must be a PDF, DOC, or DOCX file.', 'es-care-portal' ) );
+			$docx_ok = ( 'docx' === $ext && in_array( $real_mime, array( 'application/zip', 'application/octet-stream' ), true ) );
+			$img_ok  = in_array( $ext, array( 'jpg', 'jpeg', 'png' ), true ) && in_array( $real_mime, array( 'image/jpeg', 'image/png', 'image/jpg' ), true );
+
+			if ( ! $docx_ok && ! $img_ok ) {
+				return new WP_Error(
+					'esc_upload_mime',
+					/* translators: 1: document label, 2: allowed formats */
+					sprintf( __( '%1$s must be a %2$s', 'es-care-portal' ), $label, self::formats_help( $doc_type ) )
+				);
 			}
 		}
 
-		$stored = absint( $user_id ) . '_' . absint( $application_id ) . '_' . wp_generate_password( 16, false, false ) . '.' . $ext;
+		$stored = absint( $user_id ) . '_' . absint( $application_id ) . '_' . sanitize_key( $doc_type ) . '_' . wp_generate_password( 12, false, false ) . '.' . $ext;
 		$dest   = trailingslashit( self::directory() ) . $stored;
 
 		if ( ! @move_uploaded_file( $file['tmp_name'], $dest ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-			return new WP_Error( 'esc_upload_move', __( 'The resume could not be stored.', 'es-care-portal' ) );
+			return new WP_Error(
+				'esc_upload_move',
+				/* translators: %s: document label */
+				sprintf( __( 'The %s could not be stored.', 'es-care-portal' ), $label )
+			);
 		}
 
 		@chmod( $dest, 0640 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
@@ -342,14 +484,24 @@ class ESC_Portal_Uploads {
 	}
 
 	/**
-	 * Authenticated resume download for staff.
+	 * Authenticated document download for staff / reviewers.
 	 */
 	public static function handle_download() {
 		$application_id = isset( $_GET['application_id'] ) ? absint( $_GET['application_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$doc_type       = isset( $_GET['doc'] ) ? sanitize_key( wp_unslash( $_GET['doc'] ) ) : 'resume'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$nonce          = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
-		if ( ! $application_id || ! wp_verify_nonce( $nonce, 'esc_download_resume_' . $application_id ) ) {
-			wp_die( esc_html__( 'Invalid download link.', 'es-care-portal' ), 403 );
+		if ( ! self::document_type( $doc_type ) ) {
+			$doc_type = 'resume';
+		}
+
+		$doc = self::document_type( $doc_type );
+
+		if ( ! $application_id || ! wp_verify_nonce( $nonce, 'esc_download_resume_' . $application_id . '_' . $doc_type ) ) {
+			// Backward-compatible nonce for older resume-only links.
+			if ( 'resume' !== $doc_type || ! wp_verify_nonce( $nonce, 'esc_download_resume_' . $application_id ) ) {
+				wp_die( esc_html__( 'Invalid download link.', 'es-care-portal' ), 403 );
+			}
 		}
 
 		if ( ! current_user_can( 'review_esc_applications' ) && ! ESC_Portal_Helpers::can_review_application( $application_id ) ) {
@@ -360,14 +512,20 @@ class ESC_Portal_Uploads {
 			wp_die( esc_html__( 'Application not found.', 'es-care-portal' ), 404 );
 		}
 
-		$stored = (string) get_post_meta( $application_id, '_esc_resume_file', true );
+		$stored = (string) get_post_meta( $application_id, $doc['meta_file'], true );
 		$path   = self::absolute_path( $stored );
 
 		if ( ! $path || ! is_readable( $path ) ) {
-			wp_die( esc_html__( 'The resume file is missing.', 'es-care-portal' ), 404 );
+			wp_die(
+				esc_html(
+					/* translators: %s: document label */
+					sprintf( __( 'The %s file is missing.', 'es-care-portal' ), $doc['label'] )
+				),
+				404
+			);
 		}
 
-		$download_name = (string) get_post_meta( $application_id, '_esc_resume_name', true );
+		$download_name = (string) get_post_meta( $application_id, $doc['meta_name'], true );
 
 		if ( ! $download_name ) {
 			$download_name = basename( $path );
@@ -389,21 +547,44 @@ class ESC_Portal_Uploads {
 	}
 
 	/**
-	 * Staff download URL.
+	 * Staff download URL for an application document.
 	 *
-	 * @param int $application_id Application ID.
+	 * @param int    $application_id Application ID.
+	 * @param string $doc_type       Document type key.
 	 * @return string
 	 */
-	public static function download_url( $application_id ) {
+	public static function download_url( $application_id, $doc_type = 'resume' ) {
+		if ( ! self::document_type( $doc_type ) ) {
+			$doc_type = 'resume';
+		}
+
 		return wp_nonce_url(
 			add_query_arg(
 				array(
-					'action'          => 'esc_download_resume',
-					'application_id'  => absint( $application_id ),
+					'action'         => 'esc_download_resume',
+					'application_id' => absint( $application_id ),
+					'doc'            => sanitize_key( $doc_type ),
 				),
 				admin_url( 'admin-post.php' )
 			),
-			'esc_download_resume_' . absint( $application_id )
+			'esc_download_resume_' . absint( $application_id ) . '_' . sanitize_key( $doc_type )
 		);
+	}
+
+	/**
+	 * Delete every stored document for an application.
+	 *
+	 * @param int $application_id Application ID.
+	 */
+	public static function delete_application_files( $application_id ) {
+		foreach ( self::document_types() as $doc ) {
+			$stored = (string) get_post_meta( $application_id, $doc['meta_file'], true );
+
+			if ( $stored ) {
+				self::delete_file( $stored );
+				delete_post_meta( $application_id, $doc['meta_file'] );
+				delete_post_meta( $application_id, $doc['meta_name'] );
+			}
+		}
 	}
 }

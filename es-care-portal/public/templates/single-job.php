@@ -52,9 +52,12 @@ $can_apply   = ESC_Portal_Users::can_apply_to_jobs( $portal_user ? $portal_user 
 					<?php the_content(); ?>
 				</div>
 				<p class="esc-actions">
+					<?php if ( ESC_Portal_Helpers::can_manage_job( $job_id ) ) : ?>
+						<a class="esc-button" href="<?php echo esc_url( ESC_Portal_Helpers::job_edit_url( $job_id ) ); ?>"><?php esc_html_e( 'Edit job', 'es-care-portal' ); ?></a>
+					<?php endif; ?>
 					<?php if ( $open && $can_apply ) : ?>
-						<a class="esc-button" href="<?php echo esc_url( ESC_Portal_Apply::apply_url( $job_id ) ); ?>"><?php esc_html_e( 'Apply for this role', 'es-care-portal' ); ?></a>
-					<?php elseif ( $open && $portal_user ) : ?>
+						<a class="esc-button<?php echo ESC_Portal_Helpers::can_manage_job( $job_id ) ? ' esc-button--ghost' : ''; ?>" href="<?php echo esc_url( ESC_Portal_Apply::apply_url( $job_id ) ); ?>"><?php esc_html_e( 'Apply for this role', 'es-care-portal' ); ?></a>
+					<?php elseif ( $open && $portal_user && ! ESC_Portal_Helpers::can_manage_job( $job_id ) ) : ?>
 						<a class="esc-button" href="<?php echo esc_url( ESC_Portal_Helpers::get_page_url( 'dashboard' ) ); ?>"><?php esc_html_e( 'Go to dashboard', 'es-care-portal' ); ?></a>
 					<?php elseif ( ! $open ) : ?>
 						<span class="esc-notice esc-notice--info"><?php esc_html_e( 'This position is no longer accepting applications.', 'es-care-portal' ); ?></span>

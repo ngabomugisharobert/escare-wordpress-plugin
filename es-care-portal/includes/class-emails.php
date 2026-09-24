@@ -802,17 +802,91 @@ class ESC_Portal_Emails {
 			return;
 		}
 
-		$title = get_the_title( $job_id );
+		$job = get_post( $job_id );
+
+		if ( ! $job || 'esc_job' !== $job->post_type ) {
+			return;
+		}
+
+		$title      = wp_specialchars_decode( get_the_title( $job ), ENT_QUOTES );
+		$location   = (string) get_post_meta( $job_id, '_esc_location', true );
+		$type_key   = (string) get_post_meta( $job_id, '_esc_employment_type', true );
+		$types      = ESC_Portal_Helpers::employment_types();
+		$type_label = isset( $types[ $type_key ] ) ? $types[ $type_key ] : $type_key;
+		$shift      = (string) get_post_meta( $job_id, '_esc_shift', true );
+		$pay        = (string) get_post_meta( $job_id, '_esc_pay_range', true );
+		$closing    = (string) get_post_meta( $job_id, '_esc_closing_date', true );
+		$status_key = (string) get_post_meta( $job_id, '_esc_job_status', true );
+		$statuses   = ESC_Portal_Helpers::job_statuses();
+		$status_lbl = isset( $statuses[ $status_key ] ) ? $statuses[ $status_key ] : ( $status_key ? $status_key : __( 'Open', 'es-care-portal' ) );
+		$terms      = wp_get_post_terms( $job_id, 'esc_job_category', array( 'fields' => 'names' ) );
+		$category   = ( ! is_wp_error( $terms ) && $terms ) ? implode( ', ', $terms ) : '';
+		$excerpt    = wp_trim_words( wp_strip_all_tags( $job->post_content ), 60, '…' );
+
+		$employer_name  = $user ? ( $user->display_name ? $user->display_name : trim( $user->first_name . ' ' . $user->last_name ) ) : '';
+		$company        = ( $user && ! empty( $user->company_name ) ) ? $user->company_name : '';
+		$employer_email = ( $user && ! empty( $user->email ) ) ? $user->email : '';
+		$employer_phone = ( $user && ! empty( $user->phone ) ) ? $user->phone : '';
+
+		$rows = array(
+			__( 'Job title', 'es-care-portal' )         => $title,
+			__( 'Company', 'es-care-portal' )           => $company,
+			__( 'Submitted by', 'es-care-portal' )      => $employer_name,
+			__( 'Employer email', 'es-care-portal' )    => $employer_email,
+			__( 'Employer phone', 'es-care-portal' )    => $employer_phone,
+			__( 'Location', 'es-care-portal' )          => $location,
+			__( 'Employment type', 'es-care-portal' )   => $type_label,
+			__( 'Shift', 'es-care-portal' )             => $shift,
+			__( 'Pay range', 'es-care-portal' )         => $pay,
+			__( 'Closing date', 'es-care-portal' )      => $closing,
+			__( 'Listing status', 'es-care-portal' )    => $status_lbl,
+			__( 'Category', 'es-care-portal' )          => $category,
+		);
+
 		$body  = '<p>' . sprintf(
+			/* translators: 1: employer name, 2: job title */
 			esc_html__( '%1$s submitted “%2$s” for review.', 'es-care-portal' ),
-			esc_html( $user ? $user->display_name : '' ),
+			esc_html( $employer_name ),
 			esc_html( $title )
 		) . '</p>';
-		$body .= '<p><a href="' . esc_url( ESC_Portal_Helpers::dashboard_url( 'jobs' ) ) . '">' . esc_html__( 'Review jobs', 'es-care-portal' ) . '</a></p>';
+		$body .= '<table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">';
+
+		foreach ( $rows as $label => $value ) {
+			$value = is_string( $value ) ? trim( $value ) : '';
+
+			if ( '' === $value ) {
+				continue;
+			}
+
+			$body .= '<tr>'
+				. '<td style="padding:6px 12px 6px 0;vertical-align:top;color:#555;white-space:nowrap;"><strong>' . esc_html( $label ) . '</strong></td>'
+				. '<td style="padding:6px 0;vertical-align:top;">' . esc_html( $value ) . '</td>'
+				. '</tr>';
+		}
+
+		$body .= '</table>';
+
+		if ( $excerpt ) {
+			$body .= '<p><strong>' . esc_html__( 'Description', 'es-care-portal' ) . '</strong></p>';
+			$body .= '<p style="white-space:pre-wrap;margin-top:4px;">' . esc_html( $excerpt ) . '</p>';
+		}
+
+		$body .= '<p><a href="' . esc_url( ESC_Portal_Helpers::dashboard_url( 'jobs' ) ) . '">' . esc_html__( 'Review jobs', 'es-care-portal' ) . '</a>';
+		$body .= ' &nbsp;|&nbsp; <a href="' . esc_url( ESC_Portal_Helpers::get_page_url( 'post-job', array( 'job' => $job_id ) ) ) . '">' . esc_html__( 'Edit job', 'es-care-portal' ) . '</a>';
+
+		if ( get_permalink( $job_id ) ) {
+			$body .= ' &nbsp;|&nbsp; <a href="' . esc_url( get_permalink( $job_id ) ) . '">' . esc_html__( 'Preview listing', 'es-care-portal' ) . '</a>';
+		}
+
+		$body .= '</p>';
 
 		self::send(
 			$staff,
-			sprintf( __( 'Job listing awaiting review: %s', 'es-care-portal' ), $title ),
+			sprintf(
+				/* translators: %s: job title */
+				__( 'Job listing awaiting review: %s', 'es-care-portal' ),
+				$title
+			),
 			self::wrap( __( 'Job moderation needed', 'es-care-portal' ), $body ),
 			self::headers()
 		);

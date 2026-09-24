@@ -20,7 +20,7 @@ $base       = ESC_Portal_Helpers::dashboard_url( 'jobs' );
 ?>
 <div class="esc-dash-toolbar">
 	<h2 class="esc-dash-title esc-dash-title--rule"><?php esc_html_e( 'Jobs', 'es-care-portal' ); ?></h2>
-	<a class="esc-button" href="<?php echo esc_url( ESC_Portal_Helpers::get_page_url( 'post-job' ) ); ?>"><?php esc_html_e( 'Post a job', 'es-care-portal' ); ?></a>
+	<a class="esc-button" href="<?php echo esc_url( ESC_Portal_Helpers::dashboard_url( 'post' ) ); ?>"><?php esc_html_e( 'Post a job', 'es-care-portal' ); ?></a>
 </div>
 <p class="esc-dash-copy"><?php esc_html_e( 'All job listings across employers. New employer listings wait here until they are approved.', 'es-care-portal' ); ?></p>
 
@@ -93,6 +93,7 @@ $base       = ESC_Portal_Helpers::dashboard_url( 'jobs' );
 							<td data-label="<?php esc_attr_e( 'Posted', 'es-care-portal' ); ?>"><?php echo esc_html( get_the_date( get_option( 'date_format' ), $job ) ); ?></td>
 							<td data-label="<?php esc_attr_e( 'Actions', 'es-care-portal' ); ?>">
 								<div class="esc-row-action-group">
+									<a class="esc-button esc-button--small" href="<?php echo esc_url( ESC_Portal_Helpers::job_edit_url( $job->ID ) ); ?>"><?php esc_html_e( 'Edit', 'es-care-portal' ); ?></a>
 									<a class="esc-button esc-button--ghost esc-button--small" href="<?php echo esc_url( get_permalink( $job ) ); ?>"><?php esc_html_e( 'View', 'es-care-portal' ); ?></a>
 									<?php if ( 'pending' === $job->post_status ) : ?>
 										<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">

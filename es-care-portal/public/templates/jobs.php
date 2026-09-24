@@ -88,11 +88,16 @@ $dashboard   = class_exists( 'ESC_Portal_Helpers' ) ? ESC_Portal_Helpers::get_pa
 							<p><?php echo esc_html( get_the_excerpt() ); ?></p>
 						<?php endif; ?>
 					</div>
-					<?php if ( $open && $can_apply ) : ?>
-						<a class="esc-button" href="<?php echo esc_url( ESC_Portal_Apply::apply_url( $job_id ) ); ?>"><?php esc_html_e( 'Apply', 'es-care-portal' ); ?></a>
-					<?php elseif ( $open && $portal_user ) : ?>
-						<a class="esc-button" href="<?php echo esc_url( $dashboard ); ?>"><?php esc_html_e( 'Dashboard', 'es-care-portal' ); ?></a>
-					<?php endif; ?>
+					<div class="esc-job-card-actions">
+						<?php if ( ESC_Portal_Helpers::can_manage_job( $job_id ) ) : ?>
+							<a class="esc-button esc-button--small" href="<?php echo esc_url( ESC_Portal_Helpers::job_edit_url( $job_id ) ); ?>"><?php esc_html_e( 'Edit', 'es-care-portal' ); ?></a>
+						<?php endif; ?>
+						<?php if ( $open && $can_apply ) : ?>
+							<a class="esc-button" href="<?php echo esc_url( ESC_Portal_Apply::apply_url( $job_id ) ); ?>"><?php esc_html_e( 'Apply', 'es-care-portal' ); ?></a>
+						<?php elseif ( $open && $portal_user && ! ESC_Portal_Helpers::can_manage_job( $job_id ) ) : ?>
+							<a class="esc-button" href="<?php echo esc_url( $dashboard ); ?>"><?php esc_html_e( 'Dashboard', 'es-care-portal' ); ?></a>
+						<?php endif; ?>
+					</div>
 				</li>
 				<?php
 			endwhile;

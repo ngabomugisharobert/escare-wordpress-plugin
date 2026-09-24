@@ -47,6 +47,8 @@ class ESC_Portal_Auth {
 		self::bind( 'esc_change_password', array( 'ESC_Portal_Account', 'handle_change_password' ) );
 		self::bind( 'esc_delete_account', array( 'ESC_Portal_Account', 'handle_delete_account' ) );
 		self::bind( 'esc_submit_assessment', array( 'ESC_Portal_Assessments', 'handle_submit' ) );
+		self::bind( 'esc_admin_save_assessment', array( 'ESC_Portal_Assessments', 'handle_admin_save' ) );
+		self::bind( 'esc_admin_assessment_action', array( 'ESC_Portal_Assessments', 'handle_admin_action' ) );
 		self::bind( 'esc_service_request', array( 'ESC_Portal_Forms', 'handle_request' ) );
 		self::bind( 'esc_contact', array( 'ESC_Portal_Forms', 'handle_contact' ) );
 		self::bind( 'esc_download_form', array( 'ESC_Portal_Forms', 'handle_download' ) );

@@ -71,6 +71,10 @@ function escare_seed_contact_defaults() {
 	$placeholders = array(
 		'Office hours to be confirmed',
 		'Service area to be confirmed',
+		"3917 Boulevard Rd SE\nOlympia, WA 98501",
+		'3917 Boulevard Rd SE',
+		"3919 Boulevard Rd SE\nOlympia, WA 98501",
+		'3919 Boulevard Rd SE',
 	);
 
 	foreach ( $defaults as $mod => $value ) {
@@ -78,6 +82,11 @@ function escare_seed_contact_defaults() {
 		if ( '' === trim( (string) $current ) || in_array( $current, $placeholders, true ) ) {
 			set_theme_mod( $mod, $value );
 		}
+	}
+
+	$address = (string) get_theme_mod( 'escare_address', '' );
+	if ( preg_match( '/\b391[79]\s+Boulevard\s+Rd\s+SE\b/i', $address ) ) {
+		set_theme_mod( 'escare_address', $defaults['escare_address'] );
 	}
 }
 

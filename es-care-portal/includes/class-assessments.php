@@ -221,12 +221,152 @@ class ESC_Portal_Assessments {
 	/**
 	 * @return object[]
 	 */
+	public static function all() {
+		global $wpdb;
+
+		$rows = $wpdb->get_results( 'SELECT * FROM ' . self::table() . ' ORDER BY id DESC' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * @return object[]
+	 */
 	public static function all_active() {
 		global $wpdb;
 
-		$rows = $wpdb->get_results( 'SELECT * FROM ' . self::table() . " WHERE status = 'active' ORDER BY id ASC" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$rows = $wpdb->get_results( 'SELECT * FROM ' . self::table() . " WHERE status = 'active' ORDER BY title ASC, id ASC" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 
 		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Question count keyed by assessment ID.
+	 *
+	 * @return array<int,int>
+	 */
+	public static function question_counts() {
+		global $wpdb;
+
+		$rows = $wpdb->get_results( 'SELECT assessment_id, COUNT(*) AS total FROM ' . self::questions_table() . ' GROUP BY assessment_id' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$map  = array();
+
+		if ( is_array( $rows ) ) {
+			foreach ( $rows as $row ) {
+				$map[ (int) $row->assessment_id ] = (int) $row->total;
+			}
+		}
+
+		return $map;
+	}
+
+	/**
+	 * Assessment IDs currently assigned to at least one job.
+	 *
+	 * @return int[]
+	 */
+	public static function assigned_ids() {
+		$ids = get_posts(
+			array(
+				'post_type'      => 'esc_job',
+				'post_status'    => array( 'publish', 'pending', 'draft' ),
+				'posts_per_page' => 500,
+				'fields'         => 'ids',
+				'meta_key'       => '_esc_assessment_id',
+				'meta_compare'   => '>',
+				'meta_value'     => 0,
+			)
+		);
+
+		$assigned = array();
+
+		foreach ( (array) $ids as $job_id ) {
+			$aid = absint( get_post_meta( $job_id, '_esc_assessment_id', true ) );
+			if ( $aid ) {
+				$assigned[ $aid ] = $aid;
+			}
+		}
+
+		return array_values( $assigned );
+	}
+
+	/**
+	 * Active assessments a seeker should see: those assigned to their applications,
+	 * plus any active assessment not assigned to any job (general pool).
+	 *
+	 * @param int $user_id Seeker user ID.
+	 * @return object[]
+	 */
+	public static function for_seeker( $user_id ) {
+		$user_id     = absint( $user_id );
+		$active      = self::all_active();
+		$assigned    = self::assigned_ids();
+		$assigned_map = array_fill_keys( $assigned, true );
+		$needed      = array();
+
+		if ( $user_id ) {
+			$apps = ESC_Portal_CPT_Application::for_user( $user_id );
+
+			foreach ( $apps as $app ) {
+				$status = (string) get_post_meta( $app->ID, '_esc_status', true );
+				if ( 'withdrawn' === $status ) {
+					continue;
+				}
+
+				$job_id = absint( get_post_meta( $app->ID, '_esc_job_id', true ) );
+				$aid    = $job_id ? absint( get_post_meta( $job_id, '_esc_assessment_id', true ) ) : 0;
+
+				if ( $aid ) {
+					$needed[ $aid ] = $aid;
+				}
+			}
+		}
+
+		$out = array();
+
+		foreach ( $active as $row ) {
+			$id = (int) $row->id;
+			$is_general = empty( $assigned_map[ $id ] );
+			$is_needed  = ! empty( $needed[ $id ] );
+
+			if ( $is_general || $is_needed ) {
+				$row->for_jobs = array();
+				$out[ $id ]    = $row;
+			}
+		}
+
+		if ( $needed ) {
+			foreach ( $needed as $aid ) {
+				if ( isset( $out[ $aid ] ) ) {
+					continue;
+				}
+				$row = self::get( $aid );
+				if ( $row && 'active' === $row->status ) {
+					$row->for_jobs = array();
+					$out[ $aid ]   = $row;
+				}
+			}
+
+			// Attach job titles for context on the seeker list.
+			if ( $user_id ) {
+				$apps = ESC_Portal_CPT_Application::for_user( $user_id );
+				foreach ( $apps as $app ) {
+					if ( 'withdrawn' === (string) get_post_meta( $app->ID, '_esc_status', true ) ) {
+						continue;
+					}
+					$job_id = absint( get_post_meta( $app->ID, '_esc_job_id', true ) );
+					$aid    = $job_id ? absint( get_post_meta( $job_id, '_esc_assessment_id', true ) ) : 0;
+					if ( $aid && isset( $out[ $aid ] ) ) {
+						$title = get_the_title( $job_id );
+						if ( $title && ! in_array( $title, $out[ $aid ]->for_jobs, true ) ) {
+							$out[ $aid ]->for_jobs[] = $title;
+						}
+					}
+				}
+			}
+		}
+
+		return array_values( $out );
 	}
 
 	/**
@@ -239,6 +379,273 @@ class ESC_Portal_Assessments {
 		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE id = %d', absint( $id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 
 		return $row ? $row : null;
+	}
+
+	/**
+	 * Create or update an assessment and replace its questions.
+	 *
+	 * @param array $data {
+	 *     @type int    $id
+	 *     @type string $title
+	 *     @type string $description
+	 *     @type int    $pass_score
+	 *     @type string $status
+	 *     @type array  $questions List of {question, choices[4], correct}.
+	 * }
+	 * @return int|WP_Error Assessment ID.
+	 */
+	public static function save( $data ) {
+		global $wpdb;
+
+		$id          = isset( $data['id'] ) ? absint( $data['id'] ) : 0;
+		$title       = isset( $data['title'] ) ? sanitize_text_field( $data['title'] ) : '';
+		$description = isset( $data['description'] ) ? sanitize_textarea_field( $data['description'] ) : '';
+		$pass_score  = isset( $data['pass_score'] ) ? absint( $data['pass_score'] ) : 70;
+		$status      = isset( $data['status'] ) ? sanitize_key( $data['status'] ) : 'active';
+		$questions   = isset( $data['questions'] ) && is_array( $data['questions'] ) ? $data['questions'] : array();
+
+		if ( ! $title ) {
+			return new WP_Error( 'esc_assessment_title', __( 'Please enter an assessment title.', 'es-care-portal' ) );
+		}
+
+		$pass_score = max( 1, min( 100, $pass_score ) );
+		if ( ! in_array( $status, array( 'active', 'inactive' ), true ) ) {
+			$status = 'active';
+		}
+
+		$clean_questions = array();
+
+		foreach ( $questions as $item ) {
+			$question = isset( $item['question'] ) ? sanitize_text_field( $item['question'] ) : '';
+			$choices  = isset( $item['choices'] ) && is_array( $item['choices'] ) ? array_values( $item['choices'] ) : array();
+			$correct  = isset( $item['correct'] ) ? absint( $item['correct'] ) : 0;
+
+			$choices = array_map( 'sanitize_text_field', $choices );
+			$choices = array_pad( array_slice( $choices, 0, 4 ), 4, '' );
+
+			if ( ! $question ) {
+				continue;
+			}
+
+			$filled = array_filter( $choices );
+			if ( count( $filled ) < 2 ) {
+				continue;
+			}
+
+			if ( $correct > 3 ) {
+				$correct = 0;
+			}
+
+			if ( '' === $choices[ $correct ] ) {
+				$correct = 0;
+			}
+
+			$clean_questions[] = array(
+				'question' => $question,
+				'choices'  => $choices,
+				'correct'  => $correct,
+			);
+		}
+
+		if ( empty( $clean_questions ) ) {
+			return new WP_Error( 'esc_assessment_questions', __( 'Add at least one question with two or more answer choices.', 'es-care-portal' ) );
+		}
+
+		$payload = array(
+			'title'       => $title,
+			'description' => $description,
+			'pass_score'  => $pass_score,
+			'status'      => $status,
+		);
+		$format  = array( '%s', '%s', '%d', '%s' );
+
+		if ( $id ) {
+			$existing = self::get( $id );
+			if ( ! $existing ) {
+				return new WP_Error( 'esc_assessment_missing', __( 'That assessment could not be found.', 'es-care-portal' ) );
+			}
+
+			$wpdb->update( self::table(), $payload, array( 'id' => $id ), $format, array( '%d' ) );
+		} else {
+			$wpdb->insert( self::table(), $payload, $format );
+			$id = (int) $wpdb->insert_id;
+
+			if ( ! $id ) {
+				return new WP_Error( 'esc_assessment_save', __( 'The assessment could not be saved.', 'es-care-portal' ) );
+			}
+		}
+
+		$wpdb->delete( self::questions_table(), array( 'assessment_id' => $id ), array( '%d' ) );
+
+		foreach ( $clean_questions as $i => $item ) {
+			$wpdb->insert(
+				self::questions_table(),
+				array(
+					'assessment_id' => $id,
+					'question'      => $item['question'],
+					'choices'       => wp_json_encode( $item['choices'] ),
+					'correct'       => $item['correct'],
+					'sort'          => $i + 1,
+				),
+				array( '%d', '%s', '%s', '%d', '%d' )
+			);
+		}
+
+		return $id;
+	}
+
+	/**
+	 * @param int    $id     Assessment ID.
+	 * @param string $status active|inactive.
+	 * @return bool
+	 */
+	public static function set_status( $id, $status ) {
+		global $wpdb;
+
+		$id     = absint( $id );
+		$status = sanitize_key( $status );
+
+		if ( ! $id || ! in_array( $status, array( 'active', 'inactive' ), true ) ) {
+			return false;
+		}
+
+		return false !== $wpdb->update(
+			self::table(),
+			array( 'status' => $status ),
+			array( 'id' => $id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+	}
+
+	/**
+	 * Delete an assessment and its questions. Attempts are kept for history but orphaned titles fall back.
+	 *
+	 * @param int $id Assessment ID.
+	 * @return bool
+	 */
+	public static function delete( $id ) {
+		global $wpdb;
+
+		$id = absint( $id );
+
+		if ( ! $id || ! self::get( $id ) ) {
+			return false;
+		}
+
+		$wpdb->delete( self::questions_table(), array( 'assessment_id' => $id ), array( '%d' ) );
+		$deleted = $wpdb->delete( self::table(), array( 'id' => $id ), array( '%d' ) );
+
+		// Clear job assignments pointing at this assessment.
+		$jobs = get_posts(
+			array(
+				'post_type'      => 'esc_job',
+				'post_status'    => array( 'publish', 'pending', 'draft' ),
+				'posts_per_page' => 500,
+				'fields'         => 'ids',
+				'meta_key'       => '_esc_assessment_id',
+				'meta_value'     => $id,
+			)
+		);
+
+		foreach ( (array) $jobs as $job_id ) {
+			delete_post_meta( $job_id, '_esc_assessment_id' );
+		}
+
+		return (bool) $deleted;
+	}
+
+	/**
+	 * Portal admin: save assessment form.
+	 */
+	public static function handle_admin_save() {
+		$dash = ESC_Portal_Helpers::dashboard_url( 'assessments' );
+
+		if ( ! ESC_Portal_Auth::is_logged_in() || ! ESC_Portal_Users::is_admin() ) {
+			ESC_Portal_Helpers::redirect_notice( ESC_Portal_Helpers::get_page_url( 'login' ), 'login-required', 'error' );
+		}
+
+		if ( ! isset( $_POST['esc_assessment_admin_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['esc_assessment_admin_nonce'] ) ), 'esc_admin_save_assessment' ) ) {
+			ESC_Portal_Helpers::redirect_notice( $dash, 'nonce', 'error' );
+		}
+
+		$id = isset( $_POST['esc_assessment_id'] ) ? absint( $_POST['esc_assessment_id'] ) : 0;
+
+		$raw_questions = isset( $_POST['esc_q'] ) && is_array( $_POST['esc_q'] ) ? wp_unslash( $_POST['esc_q'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$questions     = array();
+
+		foreach ( $raw_questions as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$questions[] = array(
+				'question' => isset( $row['question'] ) ? $row['question'] : '',
+				'choices'  => isset( $row['choices'] ) && is_array( $row['choices'] ) ? $row['choices'] : array(),
+				'correct'  => isset( $row['correct'] ) ? $row['correct'] : 0,
+			);
+		}
+
+		$result = self::save(
+			array(
+				'id'          => $id,
+				'title'       => isset( $_POST['esc_assessment_title'] ) ? wp_unslash( $_POST['esc_assessment_title'] ) : '', // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+				'description' => isset( $_POST['esc_assessment_description'] ) ? wp_unslash( $_POST['esc_assessment_description'] ) : '', // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+				'pass_score'  => isset( $_POST['esc_pass_score'] ) ? absint( $_POST['esc_pass_score'] ) : 70,
+				'status'      => isset( $_POST['esc_assessment_status'] ) ? sanitize_key( wp_unslash( $_POST['esc_assessment_status'] ) ) : 'active',
+				'questions'   => $questions,
+			)
+		);
+
+		if ( is_wp_error( $result ) ) {
+			$code = 'esc_assessment_questions' === $result->get_error_code() || 'esc_assessment_title' === $result->get_error_code() ? 'required' : 'save-failed';
+			$back = $id ? ESC_Portal_Helpers::dashboard_url( 'assessment', array( 'assessment' => $id ) ) : ESC_Portal_Helpers::dashboard_url( 'assessment' );
+			ESC_Portal_Helpers::redirect_notice( $back, $code, 'error' );
+		}
+
+		ESC_Portal_Helpers::redirect_notice(
+			ESC_Portal_Helpers::dashboard_url( 'assessments' ),
+			$id ? 'assessment-updated' : 'assessment-saved',
+			'success'
+		);
+	}
+
+	/**
+	 * Portal admin: toggle status or delete.
+	 */
+	public static function handle_admin_action() {
+		$dash = ESC_Portal_Helpers::dashboard_url( 'assessments' );
+
+		if ( ! ESC_Portal_Auth::is_logged_in() || ! ESC_Portal_Users::is_admin() ) {
+			ESC_Portal_Helpers::redirect_notice( ESC_Portal_Helpers::get_page_url( 'login' ), 'login-required', 'error' );
+		}
+
+		if ( ! isset( $_POST['esc_assessment_action_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['esc_assessment_action_nonce'] ) ), 'esc_admin_assessment_action' ) ) {
+			ESC_Portal_Helpers::redirect_notice( $dash, 'nonce', 'error' );
+		}
+
+		$id     = isset( $_POST['esc_assessment_id'] ) ? absint( $_POST['esc_assessment_id'] ) : 0;
+		$action = isset( $_POST['esc_assessment_action'] ) ? sanitize_key( wp_unslash( $_POST['esc_assessment_action'] ) ) : '';
+
+		if ( ! $id || ! self::get( $id ) ) {
+			ESC_Portal_Helpers::redirect_notice( $dash, 'not-allowed', 'error' );
+		}
+
+		if ( 'activate' === $action ) {
+			self::set_status( $id, 'active' );
+			ESC_Portal_Helpers::redirect_notice( $dash, 'assessment-updated', 'success' );
+		}
+
+		if ( 'deactivate' === $action ) {
+			self::set_status( $id, 'inactive' );
+			ESC_Portal_Helpers::redirect_notice( $dash, 'assessment-updated', 'success' );
+		}
+
+		if ( 'delete' === $action ) {
+			self::delete( $id );
+			ESC_Portal_Helpers::redirect_notice( $dash, 'assessment-deleted', 'success' );
+		}
+
+		ESC_Portal_Helpers::redirect_notice( $dash, 'not-allowed', 'error' );
 	}
 
 	/**

@@ -399,7 +399,7 @@ class ESC_Portal_Admin {
 		}
 
 		$email = isset( $_POST['notification_email'] ) ? sanitize_email( wp_unslash( $_POST['notification_email'] ) ) : '';
-		$max   = isset( $_POST['max_file_mb'] ) ? absint( wp_unslash( $_POST['max_file_mb'] ) ) : 5;
+		$max   = isset( $_POST['max_file_mb'] ) ? absint( wp_unslash( $_POST['max_file_mb'] ) ) : 8;
 		$types = isset( $_POST['allowed_types'] ) ? (array) wp_unslash( $_POST['allowed_types'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 		$clean_types = array();

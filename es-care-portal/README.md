@@ -4,7 +4,7 @@ WordPress plugin for **ES Care Services LLC**. It runs a job-seeker and employer
 
 Requires WordPress 6.0+ and PHP 7.4+. Elementor is optional.
 
-Current version: **2.0.24**
+Current version: **2.0.30**
 
 ## What it does
 
@@ -52,7 +52,7 @@ If a page is missing, deactivate and reactivate the plugin, or recreate it with 
 | `[esc_dash_view view="apply"]` | One dashboard view |
 | `[esc_portal_notice]` | Flash notice after a form POST |
 
-Dashboard views use `?esc_view=`. Examples: `apply`, `assessments`, `results`, `forms`, `request` (seeker); `profile`, `jobs`, `post`, `request` (employer); `users`, `jobs`, `applications` (portal admin). Contact Us is a public page, not a portal-admin dashboard view.
+Dashboard views use `?esc_view=`. Examples: `apply`, `assessments`, `results`, `forms`, `request` (seeker); `profile`, `jobs`, `post`, `request` (employer); `users`, `jobs`, `applications`, `assessments` (portal admin). Contact Us is a public page, not a portal-admin dashboard view.
 
 ## Account roles
 

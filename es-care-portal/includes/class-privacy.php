@@ -211,6 +211,12 @@ class ESC_Portal_Privacy {
 			'_esc_cover_letter'          => '',
 			'_esc_resume_file'           => '',
 			'_esc_resume_name'           => '',
+			'_esc_food_handler_file'     => '',
+			'_esc_food_handler_name'     => '',
+			'_esc_cpr_first_aid_file'    => '',
+			'_esc_cpr_first_aid_name'    => '',
+			'_esc_license_file'          => '',
+			'_esc_license_name'          => '',
 		);
 
 		foreach ( $fields as $key => $value ) {
@@ -235,12 +241,7 @@ class ESC_Portal_Privacy {
 			return;
 		}
 
-		$stored = (string) get_post_meta( $post_id, '_esc_resume_file', true );
-
-		if ( $stored ) {
-			ESC_Portal_Uploads::delete_file( $stored );
-			delete_post_meta( $post_id, '_esc_resume_file' );
-		}
+		ESC_Portal_Uploads::delete_application_files( $post_id );
 	}
 
 	/**

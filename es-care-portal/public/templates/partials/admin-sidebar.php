@@ -14,10 +14,21 @@ $items = array(
 	'users'        => __( 'Users', 'es-care-portal' ),
 	'jobs'         => __( 'Jobs', 'es-care-portal' ),
 	'applications' => __( 'Applications', 'es-care-portal' ),
+	'assessments'  => __( 'Assessments', 'es-care-portal' ),
 	'conduct'      => __( 'Code of Conduct', 'es-care-portal' ),
 );
 
-$current_label = isset( $items[ $view ] ) ? $items[ $view ] : __( 'Menu', 'es-care-portal' );
+$active = $view;
+
+if ( 'post' === $active ) {
+	$active = 'jobs';
+}
+
+if ( 'assessment' === $active ) {
+	$active = 'assessments';
+}
+
+$current_label = isset( $items[ $active ] ) ? $items[ $active ] : __( 'Menu', 'es-care-portal' );
 ?>
 <header class="esc-side esc-subnav">
 	<p class="esc-side-kicker esc-subnav-kicker esc-subnav-kicker--bar"><?php esc_html_e( 'Portal Admin', 'es-care-portal' ); ?></p>
@@ -36,7 +47,7 @@ $current_label = isset( $items[ $view ] ) ? $items[ $view ] : __( 'Menu', 'es-ca
 	</button>
 	<nav id="esc-dash-nav-admin" class="esc-side-nav esc-subnav-links" aria-label="<?php esc_attr_e( 'Admin menu', 'es-care-portal' ); ?>">
 		<?php foreach ( $items as $key => $label ) : ?>
-			<a href="<?php echo esc_url( ESC_Portal_Helpers::dashboard_url( $key ) ); ?>"<?php echo $view === $key ? ' aria-current="page"' : ''; ?>><?php echo esc_html( $label ); ?></a>
+			<a href="<?php echo esc_url( ESC_Portal_Helpers::dashboard_url( $key ) ); ?>"<?php echo $active === $key ? ' aria-current="page"' : ''; ?>><?php echo esc_html( $label ); ?></a>
 		<?php endforeach; ?>
 		<a class="esc-subnav-logout" href="<?php echo esc_url( ESC_Portal_Auth::logout_url() ); ?>"><?php esc_html_e( 'Logout', 'es-care-portal' ); ?></a>
 	</nav>

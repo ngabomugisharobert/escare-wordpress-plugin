@@ -214,10 +214,51 @@ $states          = ESC_Portal_Helpers::us_states();
 			<label for="esc_cover_letter"><?php esc_html_e( 'Cover letter / additional information', 'es-care-portal' ); ?></label>
 			<textarea id="esc_cover_letter" name="esc_cover_letter" rows="5" placeholder="<?php esc_attr_e( 'Enter here', 'es-care-portal' ); ?>"><?php echo esc_textarea( isset( $profile['cover_letter'] ) ? $profile['cover_letter'] : '' ); ?></textarea>
 		</p>
-		<p class="esc-field">
-			<label for="esc_resume"><?php esc_html_e( 'Resume / CV', 'es-care-portal' ); ?> <span class="esc-req">*</span></label>
-			<input type="file" id="esc_resume" name="esc_resume" required accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" data-esc-max="<?php echo esc_attr( (string) ( absint( $settings['max_file_mb'] ) * 1024 * 1024 ) ); ?>">
-			<span class="esc-help"><?php echo esc_html( sprintf( __( 'PDF, DOC, or DOCX. Maximum %d MB.', 'es-care-portal' ), absint( $settings['max_file_mb'] ) ) ); ?></span>
-		</p>
+	</div>
+</div>
+
+<div class="esc-app-section">
+	<div class="esc-app-section-head"><?php esc_html_e( 'Required documents', 'es-care-portal' ); ?></div>
+	<div class="esc-app-section-body">
+		<p class="esc-help"><?php esc_html_e( 'Upload each document below. Drag a file onto a box or click to browse. Certificates may be PDF or image files; your CV must be PDF, DOC, or DOCX.', 'es-care-portal' ); ?></p>
+		<div class="esc-doc-grid">
+			<?php
+			$max_mb    = absint( $settings['max_file_mb'] );
+			$max_bytes = $max_mb * 1024 * 1024;
+			foreach ( ESC_Portal_Uploads::document_types() as $doc_key => $doc ) :
+				$field_id = $doc['field'];
+				?>
+				<div class="esc-field esc-dropzone-field">
+					<span class="esc-dropzone-label" id="<?php echo esc_attr( $field_id ); ?>-label">
+						<?php echo esc_html( $doc['label'] ); ?> <span class="esc-req">*</span>
+					</span>
+					<label class="esc-dropzone" for="<?php echo esc_attr( $field_id ); ?>" data-esc-dropzone>
+						<span class="esc-dropzone-icon" aria-hidden="true">
+							<svg viewBox="0 0 48 48" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M24 8v22"/>
+								<path d="M16 16l8-8 8 8"/>
+								<path d="M10 32v6a4 4 0 0 0 4 4h20a4 4 0 0 0 4-4v-6"/>
+							</svg>
+						</span>
+						<span class="esc-dropzone-title"><?php esc_html_e( 'Drag & drop file here', 'es-care-portal' ); ?></span>
+						<span class="esc-dropzone-or"><?php esc_html_e( 'or', 'es-care-portal' ); ?></span>
+						<span class="esc-dropzone-browse"><?php esc_html_e( 'Browse files', 'es-care-portal' ); ?></span>
+						<span class="esc-dropzone-file" data-esc-dropzone-file hidden></span>
+						<input
+							type="file"
+							id="<?php echo esc_attr( $field_id ); ?>"
+							name="<?php echo esc_attr( $field_id ); ?>"
+							required
+							class="esc-doc-upload"
+							accept="<?php echo esc_attr( ESC_Portal_Uploads::accept_attr( $doc_key ) ); ?>"
+							data-esc-max="<?php echo esc_attr( (string) $max_bytes ); ?>"
+							aria-labelledby="<?php echo esc_attr( $field_id ); ?>-label"
+						>
+					</label>
+					<span class="esc-help"><?php echo esc_html( ESC_Portal_Uploads::formats_help( $doc_key ) . ' ' . sprintf( __( 'Maximum %d MB.', 'es-care-portal' ), $max_mb ) ); ?></span>
+					<button type="button" class="esc-dropzone-clear" data-esc-dropzone-clear hidden><?php esc_html_e( 'Remove file', 'es-care-portal' ); ?></button>
+				</div>
+			<?php endforeach; ?>
+		</div>
 	</div>
 </div>

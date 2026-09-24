@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 ?>
 <section class="esc-dash-panel">
 	<h2 class="esc-dash-title"><?php esc_html_e( 'Company Jobs', 'es-care-portal' ); ?></h2>
-	<p class="esc-dash-copy"><?php esc_html_e( 'Manage your job listings and review candidates who have applied.', 'es-care-portal' ); ?></p>
+	<p class="esc-dash-copy"><?php esc_html_e( 'Edit or remove your listings, and review candidates who have applied.', 'es-care-portal' ); ?></p>
 
 	<div class="esc-actions">
 		<a class="esc-button" href="<?php echo esc_url( ESC_Portal_Helpers::dashboard_url( 'post' ) ); ?>"><?php esc_html_e( 'Post a job', 'es-care-portal' ); ?></a>
@@ -43,13 +43,15 @@ defined( 'ABSPATH' ) || exit;
 								<td><a href="<?php echo esc_url( get_permalink( $job ) ); ?>"><?php echo esc_html( get_the_title( $job ) ); ?></a></td>
 								<td><?php echo esc_html( ESC_Portal_Helpers::format_status( ESC_Portal_Helpers::listing_status( $job ) ) ); ?></td>
 								<td>
-									<a href="<?php echo esc_url( ESC_Portal_Helpers::dashboard_url( 'post', array( 'job' => $job->ID ) ) ); ?>"><?php esc_html_e( 'Edit', 'es-care-portal' ); ?></a>
-									<form class="esc-inline-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-esc-confirm="<?php echo esc_attr__( 'Remove this job listing?', 'es-care-portal' ); ?>">
-										<?php wp_nonce_field( 'esc_delete_job_front', 'esc_delete_job_nonce' ); ?>
-										<input type="hidden" name="action" value="esc_delete_job_front">
-										<input type="hidden" name="esc_job_id" value="<?php echo esc_attr( (string) $job->ID ); ?>">
-										<button type="submit" class="esc-text-button"><?php esc_html_e( 'Remove', 'es-care-portal' ); ?></button>
-									</form>
+									<div class="esc-row-action-group">
+										<a class="esc-button esc-button--small" href="<?php echo esc_url( ESC_Portal_Helpers::job_edit_url( $job->ID ) ); ?>"><?php esc_html_e( 'Edit', 'es-care-portal' ); ?></a>
+										<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-esc-confirm="<?php echo esc_attr__( 'Remove this job listing?', 'es-care-portal' ); ?>">
+											<?php wp_nonce_field( 'esc_delete_job_front', 'esc_delete_job_nonce' ); ?>
+											<input type="hidden" name="action" value="esc_delete_job_front">
+											<input type="hidden" name="esc_job_id" value="<?php echo esc_attr( (string) $job->ID ); ?>">
+											<button type="submit" class="esc-button esc-button--danger esc-button--small"><?php esc_html_e( 'Remove', 'es-care-portal' ); ?></button>
+										</form>
+									</div>
 								</td>
 							</tr>
 						<?php endforeach; ?>

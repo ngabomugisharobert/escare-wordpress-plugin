@@ -35,7 +35,7 @@ class ESC_Portal_Applications_List_Table extends WP_List_Table {
 			'job'       => __( 'Job', 'es-care-portal' ),
 			'status'    => __( 'Status', 'es-care-portal' ),
 			'date'      => __( 'Submitted', 'es-care-portal' ),
-			'resume'    => __( 'Resume', 'es-care-portal' ),
+			'resume'    => __( 'Documents', 'es-care-portal' ),
 		);
 	}
 
@@ -231,13 +231,19 @@ class ESC_Portal_Applications_List_Table extends WP_List_Table {
 	 * @return string
 	 */
 	protected function column_resume( $item ) {
-		$file = get_post_meta( $item->ID, '_esc_resume_file', true );
+		$links = array();
 
-		if ( ! $file ) {
-			return '&mdash;';
+		foreach ( ESC_Portal_Uploads::document_types() as $doc_key => $doc ) {
+			$file = get_post_meta( $item->ID, $doc['meta_file'], true );
+
+			if ( ! $file ) {
+				continue;
+			}
+
+			$links[] = '<a href="' . esc_url( ESC_Portal_Uploads::download_url( $item->ID, $doc_key ) ) . '">' . esc_html( $doc['label'] ) . '</a>';
 		}
 
-		return '<a href="' . esc_url( ESC_Portal_Uploads::download_url( $item->ID ) ) . '">' . esc_html__( 'Download', 'es-care-portal' ) . '</a>';
+		return $links ? implode( '<br>', $links ) : '&mdash;';
 	}
 
 	/**
